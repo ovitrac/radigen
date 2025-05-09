@@ -1,70 +1,140 @@
 """
 Module: radigen3.oxidation.py
 
-Core module for simulating oxidation reactions in complex mixtures.
+Core module for radical oxidation modeling within the Generative Simulation Initiative.
 
-This kernel supports the generative construction and simulation of radical-driven oxidation mechanisms in systems such as edible oils, fuels, and polymers. The underlying approach is modular and combinatorial, enabling flexibility across classes of reactive functions and substrates.
+This kernel supports the generative construction, parameterization, and simulation
+of oxidation reaction networks in chemically diverse mixtures, such as edible oils,
+FAMEs, fuels, and polymers. The oxidation model is built from chemical species annotated
+with reactive functions and product maps. Radical propagation, decomposition, and
+termination pathways are handled automatically, including temperature effects and
+diffusion-limited corrections.
 
-Current status: functional prototype under active development.
+Features:
+    - Auto-generation of all relevant reaction species and products from labile H donors.
+    - Rule-based reaction network construction with automatic cross-reaction inference.
+    - Temperature-dependent Arrhenius and Smoluchowski kinetics.
+    - Support for hydroperoxide decomposition equilibrium (free vs. cage).
+    - Stoichiometric matrix generation and fast vectorized ODE solving.
+    - Oxygen dissolution modeled as a transport-limited source term.
+    - Support for hundreds of reactions and species from text prompts.
+    - Support arbitrary lumped species.
 
-Typical usage example (oxidation of fatty acid methyl esters, FAMEs):
+LLM compatibility:
+    This module is designed to be a kernel for Large Language Models (LLMs) that can
+    reason about and manipulate chemical mixtures and reaction systems from natural
+    language. The full system is composable, traceable, and extensible.
 
-    oil = mixture()
-    oil.add("L1H", concentration=3000)
-    oil.add("L1OOH", concentration=100)
-    oil.add("O2", concentration=10)
-    oil.addProducts()
-    oil.addReactions()
-    oil.populateReactionRates()
-
-    # ouput
-    oil.reactions yield (* means parameterized reaction):
-
-        [*R0: L1H + HO• -> L1• + H2O,
-         *R1: L1H + L1O• -> L1• + L1OH,
-         *R2: L1H + L1OO• -> L1• + L1OOH,
-         *R3: L1OOH -> L1O• + HO•,
-         *R4: L1OOH + L1OOH -> L1O• + L1OO•,
-         *R5: L1• + O2 -> L1OO•,
-         *R6: L1• + L1• -> L1-polymer + L1-polymer,
-         *R7: L1• + L1OO• -> L1-polymer + L1-polymer,
-         *R8: L1O• -> L1=O,
-         *R9: L1OO• + L1OO• -> L1-polymer + L1-polymer]
-
-Implemented features:
-    - Representation of reactive species with structural and kinetic attributes (✔)
-    - Combinatorial construction of reaction networks (✔)
-    - Parameterization of reaction rate constants for self- and cross-reactions (➤ in progress)
-    - Diffusion-limited reaction rate modeling (✘ pending)
-    - Variable oxygenation and temperature coupling (✘ pending)
-    - Stoichiometric matrix construction and kinetic ODE integration (✘ pending)
-    - Support for dynamic simulation conditions (✘ future scope)
+Key References:
+[2] Touffet M., Vitrac O. (2025), "Temperature-dependent kinetics of unsaturated fatty acid methyl esters:
+    Modeling autoxidation mechanisms", Food Chemistry, 481, 143952. https://doi.org/10.1016/j.foodchem.2025.143952
+[1] Touffet M., Smith P., Vitrac O. (2023), "A comprehensive two-scale model for predicting the oxidizability
+    of fatty acid methyl ester mixtures", Food Research International, 173(1), 113289. https://doi.org/10.1016/j.foodres.2023.113289
 
 
-This work builds upon the following two publications, which respectively address the mechanistic modeling of autoxidation kinetics and the predictive simulation of FAME mixture oxidizability:
+### 🧩 Overview of Core Classes
+| Class             | Purpose                                                                 | Key Features                                                                                    |
+| ----------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `species`         | Represents a chemical species, radical or non-radical                   | Tracks identity, concentration, radical status, reactive functions, origin and products         |
+| `reaction`        | Encodes a single chemical reaction with stoichiometry and type          | Handles bimolecular/monomolecular logic, canonical fingerprinting, and directionality           |
+| `reactionRateDB`  | Stores and queries rate constants (`k₀`, `Eₐ`) for known reaction types | Supports fingerprint lookups, priority ranks, redox heuristics, and confidence tagging          |
+| `mixture`         | Container for species and reactions in a chemical system                | Builds product and reaction networks automatically from a few initial species                   |
+| `mixtureKinetics` | Numerical kinetic solver based on a `mixture` instance                  | Integrates ODEs, applies temperature & diffusion corrections, and returns time-resolved results |
+| `lumped`          | Groups multiple species under a shared name or tag (e.g., LOOH)         | Supports species aliases, output simplification, and aggregate quantification                   |
 
-[2] Touffet M., Vitrac O., Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms, Food Chemistry, 481 (2025), 143952. https://doi.org/10.1016/j.foodchem.2025.143952
-[1] Touffet M., Smith P., Vitrac O., A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures, Food Research International, 173(1) (2023), 113289. https://doi.org/10.1016/j.foodres.2023.113289
 
-
-This module is part of the Generative Simulation Initiative.
-For questions or contributions, contact: olivier.vitrac@gmail.com
-
+Author: Olivier Vitrac — olivier.vitrac@gmail.com
 Revision: 2025-05-07
 """
+
+# %% Indentication
+__project__ = "SFPPy"
+__author__ = "Olivier Vitrac"
+__copyright__ = "Copyright 2025"
+__credits__ = ["Olivier Vitrac"]
+__license__ = "MIT"
+__maintainer__ = "Olivier Vitrac"
+__email__ = "olivier.vitrac@gmail.com"
+__version__ = "0.40"
 
 
 # %% Dependencies
 import re, math
 import pandas as pd
+import numpy as np
+from scipy.sparse import dok_matrix, csr_matrix
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
 from collections import defaultdict
+
+__all__ = ["species","reaction","reactionRateDB","mixture","mixtureKinetics", "lumped"]
 
 # %% Reaction Class
 class reaction:
+    """
+    Represents a chemical reaction of the form A (+ B) → C (+ D).
+
+    This class handles the logical structure and parameterization of elementary reactions in
+    radical oxidation mechanisms. It supports Arrhenius and Smoluchowski rate models, diffusion-limited
+    corrections, and fingerprinting for unique identification and cross-term inference.
+
+    It distinguishes between monomolecular and bimolecular reactions, between self- and cross-reactions,
+    and supports equilibrium treatment for specific classes (e.g. hydroperoxides).
+
+    Attributes:
+        A, B (species): Reactants; B can be None (monomolecular reaction).
+        C, D (species): Products; D can be None.
+        index (int): Reaction index within the mixture.
+        k0 (float): Pre-exponential rate constant at T0.
+        Ea (float): Activation energy [J/mol].
+        T0 (float): Reference temperature [°C].
+        kunits, Eaunits, Tunits (str): Units for k0, Ea, T0.
+        diffusionLimited (bool): Whether reaction is diffusion-limited.
+        ratio_rgh (float): Ratio of gyration to hydrodynamic radii.
+        eta0, eta_Ea, eta_T0, etaunits: Viscosity model parameters.
+        model (str): String describing the rate model origin.
+        phi (float): Multiplicative factor for cross-reactions.
+        inherit (tuple): Self-reactions from which a cross-reaction inherits its rate.
+
+    Properties:
+        ismonomolecular (bool): True if only A is defined.
+        isbimolecular (bool): True if both A and B are defined.
+        isselfroot (bool): True if A and B share the same root.
+        iscrossroot (bool): True if A and B differ by root.
+        isdecompositionROOH (bool): True if hydroperoxide decomposition.
+        iscagedecompositionROOH (bool): True if bimolecular hydroperoxide cage decomposition.
+
+    Methods:
+        k(T): Return rate constant (includes cross-term inference).
+        kArrhenius(T): Arrhenius-only rate constant.
+        kSmoluchowski(T): Smoluchowski diffusion rate.
+        viscosity(T): Temperature-dependent viscosity.
+        fingerprint: Human-readable identifier (e.g. "A + B -> C + D").
+        crossfingerprints: Tuple of fingerprints for each self-reaction of a cross-term.
+        __str__, __repr__: Human-readable and detailed representations.
+
+    Static Methods:
+        hash_reagents(A, B): Hash based on reactants.
+        hash_reagents_products(A, B, C, D): Hash including products.
+        order_reagents(A, B, C, D): Canonical ordering of inputs.
+
+    Notes:
+        - Reactions are ordered to ensure uniqueness (e.g., oxidant = B if ranks differ).
+        - Rate constants are inferred from registered `reactionRateDB` entries.
+        - Cross-reactions use a geometric mean of inherited rate constants.
+
+    See also:
+        - species: for chemical participant definitions.
+        - mixture: for reaction network generation and storage.
+        - reactionRateDB: for assigning kinetic constants.
+    """
+
     def __init__(self, *, A, C, B=None, D=None,
                  index=None, k0=1.0, Ea=45.0e3, T0=25.0,
-                 Tunits = "°C", kunits = "m³/mol/s", Eaunits = "J/mol",
-                 model="default"):
+                 Tunits = "°C", kunits = "m³/mol·s", Eaunits = "J/mol",
+                 diffusionLimited = False, ratio_rgh = 0.77,
+                 eta0 = 1.9e-3, eta_Ea = 17.0e3, eta_T0 = 80, etaunits = "Pa·s",
+                 model="default", Tdefault=40, phi=2.0):
         """
         Initialize a reaction A (+ B) -> C (+ D)
 
@@ -84,25 +154,39 @@ class reaction:
         self.B = B
         self.C = C
         self.D = D
+        # index and inherited reactions
         self.index = index
+        self.inherit = None # Returns both self-reactions matching a cross-reaction
+        # Arrhenius terms
         self.k0 = k0
         self.kunits = kunits
         self.Ea = Ea
         self.Eaunits = Eaunits
         self.T0 = T0
         self.Tunits = Tunits
+        # Smoluchowski terms
+        self.diffusionLimited = diffusionLimited # False
+        self.ratio_rgh = ratio_rgh # 0.77 # ratio between gyration (0.52 nm ± 0.08 nm) and hydrodynamic radii
+        # Viscosity parameters
+        self.eta0 = eta0      # 1.9e-3 # Pa·s (C18:1)
+        self.eta_Ea = eta_Ea  # 17.0e3 # J/mol
+        self.eta_T0 = eta_T0  # 80 # °C
+        # other attributes
         self.model = model
         self.assigned = False
+        self.Tdefault = Tdefault #40 #°C (default temperature if not defined)
+        # cross terms
+        self.phi = phi # cross-reaction rate mutiplicative constant respec­tively to their geometric mean
 
     @property
     def isselfroot(self):
         """Returns True if the reaction is bimolecular and involves same roots (e.g., L1OOH+L1OOH)"""
-        return self.A.allylic == self.B.allylic if self.B is not None else True
+        return ((self.A.root == self.B.root) or self.B.root=="") if self.B is not None else True
 
     @property
     def iscrossroot(self):
         """Returns True if the reaction is monomolecular or involves different roots (e.g., L1OOH+L2OOH)"""
-        return self.A.allylic != self.B.allylic if self.B is not None else False
+        return ((self.A.root != self.B.root) and self.B.root!="") if self.B is not None else False
 
     @property
     def ismonomolecular(self):
@@ -115,17 +199,55 @@ class reaction:
         return self.B is not None
 
     @property
-    def k(self):
+    def isdecompositionROOH(self):
+        """Returns True is the reaction involves the decomposition of hydroperoxides"""
+        if self.ismonomolecular:
+            return self.A.reactiveFunction == "COOH"
+        else:
+            return self.A.reactiveFunction == "COOH" and self.B.reactiveFunction == "COOH"
+
+    @property
+    def iscagedecompositionROOH(self):
+        """Returns True if the reaction involves a bimolecular cage decomposition of hydroperoxides"""
+        return self.isbimolecular and self.isdecompositionROOH
+
+    def kArrhenius(self,T=None):
+        """Returns the Arrhenian reaction rate"""
+        T = self.Tdefault if T is None else T
+        R = 8.314  # J/mol·K
+        T_kelvin = 273.15 + T
+        T0_kelvin = 273.15 + self.T0
+        exponent = -self.Ea / R * (1/T_kelvin - 1/T0_kelvin)
+        return self.k0 * math.exp(exponent)
+
+    def kSmoluchowski(self,T=None):
+        """Returns the Smoluchowski reaction rate"""
+        T = self.Tdefault if T is None else T
+        R = 8.314  # J/mol·K
+        T_kelvin = 273.15 + T
+        return 16.0/6.0 * self.ratio_rgh * R * T_kelvin / self.viscosity(T)
+
+    def viscosity(self,T=None):
+        """Returns the dynamic viscosity"""
+        T = self.Tdefault if T is None else T
+        R = 8.314  # J/mol·K
+        T_kelvin = 273.15 + T
+        T0_kelvin = 273.15 + self.eta_T0
+        exponent = self.eta_Ea / R * (1/T_kelvin - 1/T0_kelvin)
+        return self.eta0 * math.exp(exponent)
+
+    def k(self,T=None):
         """
         Returns a function k(T) giving the Arrhenius rate constant at temperature T (°C).
         """
-        def arrhenius(T):
-            R = 8.314  # J/mol·K
-            T_kelvin = 273.15 + T
-            T0_kelvin = 273.15 + self.T0
-            exponent = -self.Ea / R * (1/T_kelvin - 1/T0_kelvin)
-            return self.k0 * math.exp(exponent)
-        return arrhenius
+        T = self.Tdefault if T is None else T
+        if self.inherit:
+            return self.phi * math.sqrt( self.inherit[0].k(T) * self.inherit[1].k(T) )
+        else:
+            if self.diffusionLimited:
+                return 1 / (1/self.kSmoluchowski(T) + 1/self.kArrhenius(T))
+            else:
+                return self.kArrhenius(T)
 
     @property
     def fingerprint(self):
@@ -140,6 +262,28 @@ class reaction:
             parts.append("+")
             parts.append(self.D.shortname)
         return " ".join(parts)
+
+    @property
+    def crossfingerprints(self):
+        """Returns the human-readable fingerprints for cross-reactions"""
+        if not self.iscrossroot:
+            return self.fingerprint
+        A_rootA = self.A.root + self.A.suffix
+        B_rootA = self.A.root + self.B.suffix
+        C_rootA = self.A.root + self.C.suffix
+        D_rootA = self.A.root + self.D.suffix if self.D else None
+        A_rootB = self.B.root + self.A.suffix
+        B_rootB = self.B.root + self.B.suffix
+        C_rootB = self.B.root + self.C.suffix
+        D_rootB = self.B.root + self.D.suffix if self.D else None
+        parts_rootA = [A_rootA,"+",B_rootA,"->",C_rootA]
+        parts_rootB = [A_rootB,"+",B_rootB,"->",C_rootB]
+        if self.D:
+            parts_rootA.append("+")
+            parts_rootA.append(D_rootA)
+            parts_rootB.append("+")
+            parts_rootB.append(D_rootB)
+        return (" ".join(parts_rootA)," ".join(parts_rootB))
 
     def __str__(self):
         """Shows reactions as strings, add * if the reaction is documented"""
@@ -158,10 +302,12 @@ class reaction:
             'C': self.C.name,
             'D': self.D.name if self.D else None,
             'index': self.index,
-            f'k(T0={self.T0:.1f} [{T0_units}])': f"{self.k(self.T0):.3g} [{k0_units}]",
-            'Ea': f"{self.Ea:.3g} [{Ea_units}]",
             'model': self.model,
-        }
+            f'kA(T0={self.T0:.1f} [{T0_units}])': f"{self.kArrhenius(self.T0):.3g} [{k0_units}]",
+            'Ea': f"{self.Ea:.3g} [{Ea_units}]"
+            }
+        if self.isbimolecular and self.diffusionLimited:
+            props[f"kSL(T0={self.T0:.1f} [{T0_units}])"] = f"{self.kSmoluchowski(self.T0):.3g} [{k0_units}]"
         width = max(len(k) for k in props)
         print("\n".join(f"{k.rjust(width)}: {v}" for k, v in props.items()))
         return str(self)
@@ -191,6 +337,19 @@ class reaction:
             return hash(frozenset([A.name, B.name]))
 
     @staticmethod
+    def hash_reagents_products(A, B=None, C=None, D=None):
+        """
+        Returns a hash based on reagent and product identities.
+        """
+        A,B,C,D = reaction.order_reagents(A, B, C, D)
+        if B is None:
+            return hash(A.name)
+        elif D is None:
+            return hash(frozenset([A.name, B.name, C.name]))
+        else:
+            return hash(frozenset([A.name, B.name, C.name, D.name]))
+
+    @staticmethod
     def order_reagents(A, B, C=None, D=None):
         """
         Orders A + B -> C + D for reaction consistency (B is the oxidizer)
@@ -209,25 +368,156 @@ class reaction:
         if B is not None:
             A_rank = getattr(A, "_redoxRank", float("inf"))
             B_rank = getattr(B, "_redoxRank", float("inf"))
-            if A_rank > B_rank:
+            if A_rank and B_rank and A_rank > B_rank:
                 return B, A, D, C
 
         return A, B, C, D
 
 
-# %% Base Mixture Class
+# %% Base Mixture and MixtureKinetics classes
+
+# --------------------------------------------------------
+# Base mixture class
+# --------------------------------------------------------
 class mixture:
     """
-    Represents a mixture of chemical species, such as those found in a reacting system.
+    Container class for chemical species and reactions involved in oxidation mechanisms.
+
+    The `mixture` class represents a chemical system composed of individual `species` objects,
+    along with their physical properties, reaction relationships, and dynamic behaviors.
+    It supports prompt-driven population of reactive species, combinatorial generation of reactions,
+    and parameterization from a curated reaction rate database.
+
+    This class also encodes physical parameters relevant to kinetic modeling, including
+    density, molar mass, volume, area, oxygen pressure, and diffusion properties.
+
+    It is the entry point for model creation in the oxidation kernel, and is tightly coupled with
+    the `mixtureKinetics` class, which provides numerical integration of the reaction network.
 
     Attributes:
-        name (str): The name of the mixture.
-        description (str): Descriptive text.
-        substances (list): List of species instances, each with an assigned index.
+        name (str): Name of the mixture.
+        description (str): Optional description.
+        A (float): Interfacial area for mass transfer [m²].
+        V (float): Volume of the reacting domain [m³].
+        pO2 (float): Partial pressure of oxygen [Pa].
+        M (float): Molar mass of the mixture [kg/mol].
+        rho0 (float): Reference density [kg/m³] at `rho_T0` °C.
+        rho_T0 (float): Reference temperature for density [°C].
+        rho_beta (float): Thermal expansion coefficient [1/K].
+        kO2 (float): Oxygen mass transfer coefficient [m/s].
+
+    Internals:
+        _substances (list): List of all species in the mixture.
+        _reactions (dict): Indexed dictionary of all reactions.
+        _reaction_hashes (set): Set of reaction fingerprints for uniqueness.
+        _reaction_counter (int): Tracks reaction indices for auto-numbering.
+
+    Key Methods:
+        add(clsname, name=..., **kwargs) → species
+            Add a species to the mixture by class or alias name.
+        addProducts() → int
+            Recursively add all valid product species inferred from reactive pairs.
+        addReactions() → int
+            Combinatorially create all valid reactions among species in the mixture.
+        populateReactionRates() → int
+            Assign rate constants using registered reaction rate data.
+
+        buildStoichiometryMatrix(sparse=False) → (S, species_list, reactions_list)
+            Build the full stoichiometric matrix (dense or sparse).
+        stoichiometryDataFrame(sparse=False) → pd.DataFrame
+            Return a human-readable DataFrame version of the stoichiometry.
+
+        getReactionByFingerprint(fingerprint: str) → reaction
+            Look up a reaction using its string representation.
+        getSpeciesByReactiveFunction(func: str) → list[species]
+            Return species that match a given reactive function (e.g., "COOH").
+
+        get_lumped_by_function(function: str) → lumped
+            Return a lumped object for all species with the given reactive function.
+        get_lumped_by_pattern(pattern: str, attr="name") → lumped
+            Return a lumped object for species matching a regex pattern on a given attribute.
+
+        lumped_hydroperoxides() → lumped
+            Return a lumped species for all hydroperoxides (reactiveFunction = "COOH").
+        lumped_alcohols() → lumped
+            Return a lumped species for all alcohols (reactiveFunction = "COH").
+        lumped_aldehydes() → lumped
+            Return a lumped species for all aldehydes (reactiveFunction = "CHO").
+        lumped_ketones() → lumped
+            Return a lumped species for all ketones (reactiveFunction = "C=O").
+        lumped_radicals_on_C() → lumped
+            Return a lumped species for all radicals centered on carbon atoms.
+        lumped_radicals_on_O() → lumped
+            Return a lumped species for all radicals centered on oxygen atoms.
+        lumped_polar_compounds() → lumped
+            Return a lumped species for polar compounds (any compound with at least one oxygen).
+
+    Usage Example:
+        oil = mixture()
+        oil.add("L1H", concentration=3000)
+        oil.add("L1OOH", concentration=100)
+        oil.add("O2", concentration=10)
+        oil.addProducts()
+        oil.addReactions()
+        oil.populateReactionRates()
+        S, species_list, rxn_list = oil.buildStoichiometryMatrix()
+        df = oil.stoichiometryDataFrame()
+
+    Notes:
+        - Products are named by combining the reagent root and the suffix of the product class.
+        - Cross-reactions are inferred automatically but do not get their own parameter sets.
+        - This class does not perform any kinetic simulation — see `mixtureKinetics` for that.
+        - All parameters are expressed in SI units, unless otherwise noted.
+
+    See also:
+        - mixtureKinetics: For kinetic integration and modeling.
+        - species: For base and derived chemical species.
+        - reaction: For handling A (+B) → C (+D) logic.
+        - reactionRateDB: To define and register kinetic data.
+
+    Part of the Generative Simulation Initiative — olivier.vitrac@gmail.com
     """
-    def __init__(self, name="mixture", description=""):
+
+    def __init__(self, name="mixture", description="",
+                 A = 0.45, V = 3e-3, pO2 = 21e3, M = 0.28246,
+                 rho0 = 883, rho_T0 = 25, rho_beta = 6.3e-4, kO2 = 1e-5,
+                 Aunits = "m²", Vunits = "m³", pO2units = "Pa", Munits = "kg·m⁻¹",
+                 rhounits = "kg·m⁻³", Tunits = "°C", betaunits = "K⁻¹", kO2units="m·s⁻¹"):
+        """
+        Attributes:
+            name (str): The name of the mixture.
+            description (str): Descriptive text.
+            substances (list): List of species instances, each with an assigned index.
+
+        Mixture container:
+            Physical properties: default values (units)
+                 A: 0.3*0.15 (m²), surface Area
+                 V: 3e-3 (m³), volume
+               pO2: 21e3 (Pa), O2 partial pressure in equilibrium with the mixture
+              rho0: 883 (kg/m³)
+            rho_T0: 25 (°C) reference temperature for density
+          rho_beta: 6.3e-4 (K⁻¹), thermal expansion coefficient
+        """
+
         self.name = name
         self.description = description
+        # physical properties
+        self.A = A
+        self.V = V
+        self.pO2 = pO2
+        self.rho0 = rho0
+        self.rho_T0 = rho_T0
+        self.rho_beta = rho_beta
+        self.Aunits = Aunits
+        self.Vunits = Vunits
+        self.pO2units = pO2units
+        self.rhounits = rhounits
+        self.Tunits = Tunits
+        self.betaunits = betaunits
+        self.M = M
+        self.Munits = Munits
+        self.kO2 = kO2
+        self.kO2units = kO2units
         # substances
         self._substances = []
         self._indexmap = {}
@@ -286,7 +576,10 @@ class mixture:
         self._replace(key, value)
 
     def __setattr__(self, key, value):
-        core_attrs = {"name", "description", "_substances", "_indexmap", "_namemap"}
+        core_attrs = {"name", "description",
+            "A","V","pO2","M","kO2","Aunits","Vunits","pO2units","Munits", "kO2units",
+            "rho0","rho_T0","rho_beta","rhounits","Tunits","betaunits",
+            "_substances", "_indexmap", "_namemap"}
         if key in core_attrs:
             super().__setattr__(key, value)
         elif isinstance(value, list) and value == []:
@@ -555,7 +848,9 @@ class mixture:
 
     def addReaction(self, A, B, C, D=None):
         A2, B2, C2, D2 = reaction.order_reagents(A, B, C, D)
-        rhash = reaction.hash_reagents(A, B)
+        if B2 and D2 and A2.reactiveFunction==B2.reactiveFunction: # A and B are symmetric
+            C2, D2, _, _ = reaction.order_reagents(C2, D2) # order C and D
+        rhash = reaction.hash_reagents_products(A2,B2,C2,D2) # #rhash = reaction.hash_reagents(A, B)
         if rhash in self._reaction_hashes:
             return None
         r = reaction(A=A2, B=B2, C=C2, D=D2, index=self._reaction_counter)
@@ -631,7 +926,8 @@ class mixture:
                 if not Aps or not Bps:
                     continue
 
-                if len(Aps) == len(Bps) and len(Aps) > 1 and type(A) == type(B):
+                # if the reactive groups are similar, the product lists is reversed
+                if len(Aps) == len(Bps) and len(Aps) > 1 and A.reactiveFunction==B.reactiveFunction: #type(A) == type(B):
                     combos = list(zip(Aps, Bps[::-1]))
                 else:
                     maxlen = max(len(Aps), len(Bps))
@@ -667,18 +963,60 @@ class mixture:
         """
         updated = 0
         for rxn in self._reactions.values():
-            fp = rxn.fingerprint
-            entry = reactionRateDB.get_latest(fp)
-            if entry:
-                rxn.k0 = entry.k0
-                rxn.Ea = entry.Ea
-                rxn.T0 = entry.T0
-                rxn.kunits = entry.kunits
-                rxn.Eaunits = entry.Eaunits
-                rxn.Tunits = entry.Tunits
-                rxn.model = "values from "+entry.source
-                rxn.assigned = True
-                updated += 1
+            if rxn.isselfroot: # same self-reaction
+                fp = rxn.fingerprint
+                entry = reactionRateDB.get_latest(fp)
+                if entry:
+                    rxn.k0 = entry.k0
+                    rxn.Ea = entry.Ea
+                    rxn.T0 = entry.T0
+                    rxn.kunits = entry.kunits
+                    rxn.Eaunits = entry.Eaunits
+                    rxn.Tunits = entry.Tunits
+                    rxn.diffusionLimited = entry.diffusionLimited
+                    rxn.ratio_rgh = entry.ratio_rgh
+                    rxn.eta0 = entry.eta0
+                    rxn.eta_T0 = entry.eta_T0
+                    rxn.eta_Ea = entry.eta_Ea
+                    rxn.etaunits = entry.etaunits
+                    rxn.phi = entry.phi # constant from cross-reaction terms
+                    rxn.model = "values from "+entry.source
+                    rxn.assigned = True
+                    updated += 1
+                else:
+                    print("Missing reaction rate constant for:",rxn)
+            else: # cross-reaction, we store the references to the self-reactions
+                fps = rxn.crossfingerprints
+                # last reaction rates data
+                entry_rootA = reactionRateDB.get_latest(fps[0])
+                entry_rootB = reactionRateDB.get_latest(fps[1])
+                # matching self-reactions
+                rxn_rootA = self.getReactionByFingerprint(fps[0])
+                rxn_rootB = self.getReactionByFingerprint(fps[1])
+                if entry_rootA and entry_rootB:
+                    # minimum refresh of constants (in case they have not been refreshed)
+                    rxn_rootA.k0 = entry_rootA.k0
+                    rxn_rootB.k0 = entry_rootB.k0
+                    rxn_rootA.T0 = entry_rootA.T0
+                    rxn_rootB.T0 = entry_rootB.T0
+                    rxn_rootA.Ea = entry_rootA.Ea
+                    rxn_rootB.Ea = entry_rootB.Ea
+                    # equivalent cross-reaction (required by method k())
+                    rxn.inherit = (rxn_rootA,rxn_rootB) # inherit self-reactions
+                    # equivalent parameters
+                    rxn.phi = math.sqrt(entry_rootA.phi*entry_rootB.phi)
+                    rxn.Ea = (entry_rootA.Ea * entry_rootB.Ea)/2
+                    rxn.T0 = entry_rootA.T0
+                    rxn.k0 = rxn.phi * math.sqrt(rxn_rootA.kArrhenius(rxn.T0) * rxn_rootB.kArrhenius(rxn.T0))
+                    rxn.diffusionLimited = entry_rootA.diffusionLimited or entry_rootB.diffusionLimited
+                    rxn.ratio_rgh = math.sqrt(entry_rootA.ratio_rgh * entry_rootB.ratio_rgh)
+                    rxn.Tunits = entry_rootA.Tunits
+                    rxn.Eaunits = entry_rootA.Eaunits
+                    rxn.etaunits = entry_rootA.etaunits
+                    rxn.eta0 = math.sqrt(entry_rootA.eta0 * entry_rootB.eta0)
+                    rxn.model = "cross reactions"
+                    rxn.assigned = True
+                    updated += 1
         return updated
 
     @property
@@ -691,55 +1029,668 @@ class mixture:
         """Returns defined reactions in the mixture as a list"""
         return list(self._reactions.values())
 
+    def getReactionByFingerprint(self, fingerprint):
+        """
+        Retrieves the reaction object matching a given fingerprint string.
+
+        Args:
+            fingerprint (str): A string representation of the reaction, e.g., "L1OOH -> L1HO• + L1O•"
+
+        Returns:
+            reaction or None: The matching reaction object, or None if not found.
+        """
+        for r in self._reactions.values():
+            if r.fingerprint == fingerprint:
+                return r
+        return None
+
+    def getSpeciesByReactiveFunction(self, reactiveFunction):
+        """
+        Retrieves a list of species matching a given reactiveFunction.
+
+        Args:
+            reactiveFunction (str): A string representation of the reactive function, e.g., "L1OOH"
+
+        Returns:
+            list of species: An empty list is returned if the reactive function is not found.
+        """
+        return [sp for sp in self._substances if sp.reactiveFunction==reactiveFunction]
+
+    def buildStoichiometryMatrix(self, sparse=False):
+        """
+        Constructs the stoichiometric matrix S of the mixture's reaction network.
+
+        Rows: species (ordered by .index)
+        Columns: reactions (ordered by .index)
+
+        Reactants A,B → -1
+        Products C,D → +1
+
+        Args:
+            sparse (bool): If True, returns a scipy.sparse CSR matrix.
+
+        Returns:
+            S: Stoichiometry matrix (dense ndarray or sparse CSR)
+            species_list (list): Ordered list of species
+            reactions_list (list): Ordered list of reactions
+        """
+        species_list = sorted(self._substances, key=lambda sp: sp.index)
+        reactions_list = sorted(self._reactions.values(), key=lambda r: r.index)
+
+        n_species = len(species_list)
+        n_reactions = len(reactions_list)
+
+        if sparse:
+            S = dok_matrix((n_species, n_reactions), dtype=np.float64)
+        else:
+            S = np.zeros((n_species, n_reactions), dtype=np.float64)
+
+        for j, rxn in enumerate(reactions_list):
+            for sp in [rxn.A, rxn.B]:
+                if sp is not None:
+                    S[sp.index, j] -= 1
+            for sp in [rxn.C, rxn.D]:
+                if sp is not None:
+                    S[sp.index, j] += 1
+
+        if sparse:
+            S = S.tocsr()
+
+        return S, species_list, reactions_list
+
+
+    def stoichiometryDataFrame(self, sparse=False):
+        """
+        Converts the stoichiometry matrix into a human-readable DataFrame.
+
+        Args:
+            sparse (bool): If True, builds sparse stoichiometry matrix.
+
+        Returns:
+            pd.DataFrame: Species × Reactions stoichiometry.
+        """
+        S, species_list, reactions_list = self.buildStoichiometryMatrix(sparse=sparse)
+
+        if sparse:
+            S = S.toarray()
+
+        row_labels = [sp.name for sp in species_list]
+        col_labels = [rxn.fingerprint for rxn in reactions_list]
+
+        return pd.DataFrame(S, index=row_labels, columns=col_labels)
+
+    def get_lumped_by_function(self, function):
+        """Returns a lumped object for all species with a given reactive function."""
+        matches = [sp for sp in self if getattr(sp, "reactiveFunction", None) == function]
+        return lumped(matches) if matches else None
+
+    def get_lumped_by_pattern(self, pattern, attr="name"):
+        """Returns a lumped object for species whose attribute (default 'name') matches a regex."""
+        regex = re.compile(pattern)
+        matches = [sp for sp in self if regex.match(getattr(sp, attr, ""))]
+        return lumped(matches) if matches else None
+
+    def lumped_hydroperoxides(self):
+        """Returns a lumped species containing all hydroperoxides (COOH)."""
+        return self.get_lumped_by_function("COOH")
+
+    def lumped_alcohols(self):
+        """Returns a lumped species containing all aldehydes (COH)."""
+        return self.get_lumped_by_function("COH")
+
+    def lumped_aldehydes(self):
+        """Returns a lumped species containing all aldehydes (CHO)."""
+        return self.get_lumped_by_function("CHO")
+
+    def lumped_ketones(self):
+        """Returns a lumped species containing all aldehydes (CHO)."""
+        return self.get_lumped_by_function("C=O")
+
+    def lumped_radicals_on_C(self):
+        """Returns a lumped species with radicals centered on carbon atoms."""
+        matches = [sp for sp in self if sp.isradical_onC]
+        return lumped(matches) if matches else None
+
+    def lumped_radicals_on_O(self):
+        """Returns a lumped species with radicals centered on oxygen atoms."""
+        matches = [sp for sp in self if sp.isradical_onO]
+        return lumped(matches) if matches else None
+
+    def lumped_polar_compounds(self):
+        """Returns a lumped species including compounds with at least one oxygen (based on reactiveFunction/suffix)."""
+        matches = [
+            sp for sp in self
+            if 'O' in getattr(sp, "reactiveFunction", "") or 'O' in getattr(sp, "suffix", "")
+        ]
+        return lumped(matches) if matches else None
+
+
+# --------------------------------------------------------
+# Mixture representation for kinetic modeling
+# --------------------------------------------------------
+class mixtureKinetics:
+    """
+    Class for building and solving the kinetic model of a chemical mixture under oxidation.
+
+    This class wraps a `mixture` object, extracts its species and reactions,
+    and constructs the associated ODE system governed by:
+
+        dC/dt = S · R(C, T) + source_terms(C, T)
+
+    where:
+        - C is the vector of species concentrations [mol/m³]
+        - S is the stoichiometry matrix
+        - R is the reaction rate vector
+        - source_terms includes mass transport (e.g., O2 dissolution)
+        - Temperature T affects all Arrhenius and transport rates
+
+    Supported mechanisms:
+        - Monomolecular and bimolecular reactions
+        - Decomposition of hydroperoxides (ROOH → RO• + HO•)
+        - Cage vs. free equilibrium in ROOH
+        - Cross-reactions parameterized via geometric mean inference
+        - Oxygen source term computed from solubility (Arai et al. 1989)
+
+    Lumped Species Support:
+        `mixtureKinetics` includes a built-in registry to define and manage lumped species groups
+        (e.g., all hydroperoxides, all ketones, all C-centered radicals). These groups are defined as
+        `lumped` objects (i.e., collections of species) and can be registered under a symbolic name
+        via:
+
+            model.register_lumped("hydroperoxides", mixture.lumped_hydroperoxides())
+
+        Once registered:
+            - The name can be used in plotting and dataframe methods.
+            - The total concentration is computed as the sum over group members.
+            - The name is auto-added to plots and tables when `species=None`.
+
+        Example:
+            model.plot(["L1H", "hydroperoxides"])
+            model.results_as_dataframe(["O2", "hydroperoxides"])
+
+        The registry is accessed via:
+            model._lumped_registry   # dict[str, lumped]
+
+    Attributes:
+        mixture (mixture): The mixture object being simulated.
+        species_list (list): Ordered list of species.
+        reactions_list (list): Ordered list of reactions.
+        n_species (int): Number of individual species (excluding lumped).
+        n_reactions (int): Number of reactions.
+        _results (SimpleNamespace): Container for integration results.
+        _lumped_registry (dict): Internal registry for lumped species.
+
+    Methods:
+        get_C0() → np.ndarray
+            Return the initial concentrations from species.
+        set_C(C: np.ndarray)
+            Set concentrations from a new C vector.
+        get_R(T: float, C: np.ndarray) → np.ndarray
+            Compute reaction rates at given temperature and concentrations.
+        get_dCdt(T: float, C: np.ndarray) → np.ndarray
+            Compute dC/dt from stoichiometry and source terms.
+        solve(tspan, T, C0=None, ...) → results
+            Integrate the system over time and store results.
+
+        register_lumped(name: str, lumped_obj: lumped)
+            Register a named group of species to include in plots and outputs.
+        get_concentration(name: str) → np.ndarray
+            Return concentration profile for a species or lumped group.
+        plot(species=None, **kwargs)
+            Plot concentration profiles, including lumped groups.
+        results_as_dataframe(species=None) → pd.DataFrame
+            Return results as a dataframe (species + lumped).
+
+    Advanced:
+        - Uses pre-indexed hydroperoxides and O2 species to speed up simulation.
+        - Supports Arrhenius/Smoluchowski hybrid kinetics with diffusion limits.
+        - Equilibrium constants for ROOH cage/free are temperature-dependent.
+
+    Example:
+        oil = mixture()
+        oil.add("L1H", concentration=3000)
+        oil.add("L1OOH", concentration=100)
+        oil.add("O2", concentration=10)
+        oil.addProducts()
+        oil.addReactions()
+        oil.populateReactionRates()
+
+        model = mixtureKinetics(oil)
+        model.register_lumped("hydroperoxides", oil.lumped_hydroperoxides())
+        model.solve(3600*24, T=60)
+        model.plot(["L1H", "hydroperoxides"])
+    """
+
+    def __init__(self, mixture):
+        """mixtureKinetics constructor"""
+        self.mixture = mixture
+        self.species_list = sorted(mixture._substances, key=lambda sp: sp.index)
+        self.reactions_list = sorted(mixture._reactions.values(), key=lambda r: r.index)
+        self.n_species = len(self.species_list)
+        self.n_reactions = len(self.reactions_list)
+        # Precompute reactions indices involving hydroperoxide decomposition
+        self._freeROOH_decomposition_indices = []
+        self._cageROOH_decomposition_indices = []
+        for j,rxn in enumerate(self.reactions_list):
+            if rxn.isdecompositionROOH:
+                if rxn.iscagedecompositionROOH:
+                    self._cageROOH_decomposition_indices.append(j)
+                else:
+                    self._freeROOH_decomposition_indices.append(j)
+        # Precompute hydroperoxides indices subjected to cage mechanism
+        self._ROOH_indices = []
+        self._ROOH_indices_byname = {}
+        for i,sp in enumerate(self.species_list):
+            if sp.reactiveFunction == "COOH":
+                self._ROOH_indices.append(i)
+                self._ROOH_indices_byname[sp.name] = i
+        # Precompute source-regulated species indices (e.g. O2)
+        self._source_indices = {}
+        for i, sp in enumerate(self.species_list):
+            if sp.name == "O2":
+                self._source_indices["O2"] = i
+        # Container for integration results
+        self._solution = None
+        self._results = None
+        # Registry for lumped species
+        self._lumped_registry = {}
+
+    def register_lumped(self, name, lumped_obj):
+        """Register a lumped group under a name for plotting/dataframe output."""
+        if lumped_obj is None:
+            print(f'WARNING: The lumped species "{name}" cannot be set, it is empty')
+            return
+        if not isinstance(lumped_obj, lumped):
+            raise TypeError("Expected a lumped object.")
+        self._lumped_registry[name] = lumped_obj
+
+    def get_lumped_concentration(self, name):
+        """Return the concentration (cumulated) of a registered lumped species."""
+        if self._results is None:
+            raise RuntimeError("No solution available. Run `solve()` first.")
+        if name not in self._lumped_registry:
+            raise ValueError(f"No lumped group named '{name}' registered.")
+        indices = [self._results.species.index(sp.name) for sp in self._lumped_registry[name]]
+        return self._results.t, self._results.y[indices].sum(axis=0)
+
+    def get_C0(self):
+        """Returns the initial concentration vector C0 from species in the mixture."""
+        return np.array([sp.concentration for sp in self.species_list])
+
+    def set_C(self, C):
+        """Updates the concentrations of species in the mixture from a given concentration vector."""
+        for sp, conc in zip(self.species_list, C):
+            sp.concentration = conc
+
+    def get_R(self, T, C):
+        """
+        Computes the vector of reaction rates R at temperature T and concentrations C.
+
+        Args:
+            T (float): Temperature in °C.
+            C (array): Current concentrations of all species.
+
+        Returns:
+            R (np.ndarray): Reaction rate vector.
+        """
+        R = np.zeros(self.n_reactions, dtype=np.float64)
+        for j, rxn in enumerate(self.reactions_list):
+            k = rxn.k(T)
+            A_idx = rxn.A.index
+            if rxn.isbimolecular:
+                B_idx = rxn.B.index
+                if j in self._cageROOH_decomposition_indices: # cage mechanism subjected to eq
+                    rate = k * self.cageROOH(T,C,C[A_idx]) * self.cageROOH(T,C,C[B_idx])
+                else:
+                    rate = k * C[A_idx] * C[B_idx] # other bimolecular reactions
+            else:
+                if j in self._freeROOH_decomposition_indices: # freeROOH subjected to eq
+                    rate = k * self.freeROOH(T,C,C[A_idx])
+                else:
+                    rate = k * C[A_idx] # other monomolecular reactions
+            R[j] = rate
+        return R
+
+    def totalROOH(self,C):
+        """Returns the total concentration in hydroperoxides"""
+        return sum(C[self._ROOH_indices])
+
+    def KcagefreeROOH(self,T,C):
+        """Returns the equilibrium constant between cage and free hydroperoxides at T"""
+        TCK = 80.0 + 273.15 # K
+        TK = T + 273.15     # K
+        DeltaH = 60.0e3     # kJ/mol
+        R = 8.314           # J/mol·K
+        KTC = 2/self.totalROOH(C) # in mixture we consider an equilibrium between all species
+        exponent = DeltaH/R * (1/TK - 1/TCK)
+        return KTC * np.exp(exponent)
+
+    def freeROOH(self,T,C,CROOH):
+        """Returns the free conentration of hydroperoxides of type COOH at T"""
+        K = self.KcagefreeROOH(T,C)
+        return CROOH + (1 - np.sqrt(1+4*K*CROOH))/(2*K)
+
+    def cageROOH(self,T,C,CROOH):
+        """Returns the free conentration of hydroperoxides of type COOH at T"""
+        K = self.KcagefreeROOH(T,C)
+        return (np.sqrt(1+4*K*CROOH)-1)/(2*K)
+
+    def oxygen_solubility(self,T):
+        """
+        Returns oxygen solubility in mol/(m³·Pa) using Arai et al. (1989) constants.
+        Valid for FAMEs over a wide T range.
+
+        Args:
+            T (float): Temperature in °C.
+
+        Returns:
+            float: Solubility S_O2 in mol/(m³·Pa)
+        """
+        # Arai parameters
+        B1, B2, B3, B4 = 7080, 56.603, -0.11064, -309.62
+        TK = 273.15 + T  # Kelvin
+        exponent = B1 / TK + B2 * np.log(TK) + B3 * TK + B4
+        return 1/(1e6 * self.molarVolume(T) * math.exp(exponent))
+
+    def rho(self,T):
+        """
+        Temperature-dependent density model for mixture.
+        Args:
+            T (float): Temperature in °C.
+        Returns:
+            float: density in kg/m³
+        """
+        exponent = -self.mixture.rho_beta * (T - self.mixture.rho_T0)
+        return self.mixture.rho0 * math.exp(exponent)
+
+
+    def molarVolume(self,T):
+        """
+        Estimate molar volume (m³/mol) of the mixture
+        Args:
+            T (float): Temperature in °C.
+
+        Returns:
+            float: Molar volume in m³/mol
+        """
+        return (self.mixture.M / self.rho(T)) # m³/mol
+
+    def sourceO2(self,T,concO2):
+        """
+        Oxygen transport model
+        """
+        concO2eq = self.oxygen_solubility(T)*self.mixture.pO2
+        keffective = self.mixture.kO2 * self.mixture.A / self.mixture.V
+        return keffective * (concO2eq - concO2)
+
+
+    def get_dCdt(self, T, C):
+        """
+        Computes the time derivative of species concentrations:
+
+            dC/dt = S · R(T, C) + source_vector
+
+        Includes source term for O2 transport.
+        """
+        S, _, _ = self.mixture.buildStoichiometryMatrix(sparse=False)
+        R = self.get_R(T, C)
+        source = np.zeros(self.n_species, dtype=np.float64)
+
+        if "O2" in self._source_indices:
+            i = self._source_indices["O2"]
+            source[i] = self.sourceO2(T, C[i])
+
+        return S @ R + source
+
+    def solve(self, tspan, T=None, C0=None, species=None, method="BDF", rtol=1e-6, atol=1e-7, max_order=5, **kwargs):
+        """
+        Solves the system dC/dt = S·R(C,T) with optional oxygen source term.
+
+        Args:
+            tspan (float or tuple): Final time tf or (t0, tf)
+            T (float, optional): Temperature in °C
+            C0 (np.ndarray, optional): Initial concentrations
+            species (list[str], optional): Names of species to track
+            method (str): Solver method (e.g., 'LSODA', 'DOP853', etc.)
+            rtol, atol (float): Solver tolerances
+            max_order (int): Max solver order (used for implicit methods like LSODA)
+            **kwargs: Extra arguments for `solve_ivp`
+
+        Returns:
+            Bunch object with attributes `t`, `y`, `species`
+        """
+        from scipy.integrate import solve_ivp
+        from types import SimpleNamespace
+
+        # Allow single time value
+        if isinstance(tspan, (int, float)):
+            tspan = (0.0, float(tspan))
+
+        # Default temperature and initial conditions
+        if T is None:
+            T = self.mixture.T
+        if C0 is None:
+            C0 = self.get_C0()
+
+        # RHS Model
+        def rhs(t, C): return self.get_dCdt(T, C)
+
+        # Options (use BDF instead of LSODA if radicals are 0 at t=0)
+        default_opts = dict(method=method, rtol=rtol, atol=atol,
+                            max_order=max_order,max_step=np.inf)
+        default_opts.update(kwargs)
+
+        # integration
+        sol = solve_ivp(rhs, tspan, C0, **default_opts)
+
+        # Store solution
+        self._solution = sol
+
+        # Select species
+        tracked_species = species or [sp.name for sp in self.species_list]
+        tracked_indices = [sp.index for sp in self.species_list if sp.name in tracked_species]
+        tracked_conc = sol.y[tracked_indices, :]
+
+        # Save and return result
+        result = SimpleNamespace(
+            t=sol.t,
+            y=tracked_conc,
+            species=tracked_species,
+            species_names = tracked_species,
+            success=sol.success,
+            message=sol.message,
+            solver=method
+        )
+        self._results = result  # optional container
+
+        # Register default lumped species
+        self.register_lumped("hydroperoxides", self.mixture.lumped_hydroperoxides())
+        self.register_lumped("aldehydes", self.mixture.lumped_aldehydes())
+        self.register_lumped("ketones", self.mixture.lumped_ketones())
+        self.register_lumped("alcohols", self.mixture.lumped_alcohols())
+        self.register_lumped("polar", self.mixture.lumped_polar_compounds())
+        self.register_lumped("radicals_on_C", self.mixture.lumped_radicals_on_C())
+        self.register_lumped("radicals_on_O", self.mixture.lumped_radicals_on_C())
+
+        return result
+
+    def plot(self, species=None, ax=None, figsize=None, ncol=None, legend_loc="center left", bbox_to_anchor=(1.0, 0.5), **kwargs):
+        """
+        Plot the concentration profiles of selected species over time.
+
+        Args:
+            species (list[str], optional): List of species names to plot.
+            ax (matplotlib.axes.Axes, optional): Existing axes to plot into.
+            figsize (tuple, optional): Custom figure size (default auto).
+            ncol (int, optional): Number of legend columns (default auto).
+            legend_loc (str): Legend location.
+            bbox_to_anchor (tuple): Legend position.
+            **kwargs: Passed to plot().
+        """
+        if not hasattr(self, "_results") or self._results is None:
+            raise RuntimeError("No solution available. Run `solve()` first.")
+
+        sol = self._results
+        t = sol.t
+        y = sol.y
+
+        # Subset to selected species, resolve lumped names
+        resolved_names = []
+        y_sel_list = []
+        if species is None:
+            # Combine all individual species from the solution with all lumped keys
+            selected_species = sol.species + list(self._lumped_registry.keys())
+        else:
+            selected_species = species
+
+        for name in selected_species:
+            if name in self._lumped_registry:
+                spnames = [sp.name for sp in self._lumped_registry[name].species]
+                try:
+                    lump_indices = [sol.species.index(n) for n in spnames]
+                    y_sel_list.append(y[lump_indices].sum(axis=0))
+                except ValueError as e:
+                    raise ValueError(f"One or more species in lumped group '{name}' not in solution.") from e
+            elif name in sol.species:
+                y_sel_list.append(y[sol.species.index(name)])
+            else:
+                raise ValueError(f"Unknown species or lumped group: '{name}'")
+            resolved_names.append(name)
+        y_sel = np.vstack(y_sel_list)  # shape: (n_species, len(t))
+
+        # Default figsize
+        n_species = len(resolved_names)  # after resolving regular + lumped species
+        if figsize is None:
+            base_width = 8
+            figsize = (base_width + 0.5 * n_species, 10)
+
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            fig = ax.figure
+
+        for i, name in enumerate(selected_species):
+            ax.plot(t, y_sel[i], label=name, **kwargs)
+
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Concentration [mol/m³]")
+        ax.grid(True)
+
+        # Determine number of columns
+        if ncol is None:
+            ncol = math.ceil(n_species / 16)
+
+        ax.legend(
+            loc=legend_loc,
+            bbox_to_anchor=bbox_to_anchor,
+            ncol=ncol,
+            fontsize="small",
+            frameon=False
+        )
+
+        plt.tight_layout(rect=[0, 0, 0.85, 1.0])  # leave space for legend
+        plt.show()
+
+
+    def results_as_dataframe(self, species=None):
+        """
+        Return the time evolution of species as a pandas DataFrame.
+
+        Args:
+            species (list[str], optional): If provided, limits the output to these species.
+
+        Returns:
+            pd.DataFrame: DataFrame with time and concentrations.
+        """
+        if not hasattr(self, "_results") or self._results is None:
+            raise RuntimeError("No solution available. Run `solve()` first.")
+
+        sol = self._results
+        species_all = sol.species
+        selected_species = species or species_all
+        resolved_names = []
+        resolved_data = {}
+        for name in selected_species:
+            if name in self._lumped_registry:
+                spnames = [sp.name for sp in self._lumped_registry[name].species]
+                try:
+                    lump_indices = [species_all.index(n) for n in spnames]
+                    resolved_data[name] = sol.y[lump_indices].sum(axis=0)
+                except ValueError as e:
+                    raise ValueError(f"One or more species in lumped group '{name}' not in solution.") from e
+            elif name in species_all:
+                resolved_data[name] = sol.y[species_all.index(name)]
+            else:
+                raise ValueError(f"Species not in solution or lumped group unknown: '{name}'")
+            resolved_names.append(name)
+
+        df = pd.DataFrame(resolved_data)
+        df.insert(0, "time [s]", sol.t)
+
+        return df
+
+
+
+
 # %% Base Species Class
 class species:
     """
-    Base class for chemical species in radical oxidation modeling.
+    Base class for chemical species involved in radical oxidation.
 
-    This class serves as the root of a registry-based class hierarchy.
-    Each subclass of `species` corresponds to a specific chemical entity,
-    such as a radical, hydroperoxide, or stable product.
+    This class supports structural and kinetic representation of organic species,
+    including radicals, hydroperoxides, oxygen, alcohols, aldehydes, and stable products.
+    Derived classes should specify suffix, aliases, reactive functions, and redox ranks.
 
     Attributes:
-        name (str): Long name of the species.
-        shortname (str): Short name (alias or abbreviation).
-        root (str): Common root to track species family.
-        concentration (float): Current concentration of the species.
-        index (int or None): Optional index identifier.
+        name (str): Long name.
+        shortname (str): Abbreviation or label.
+        root (str): Identifier used to group related species.
+        concentration (float): Current concentration in mol/m³.
+        index (int): Index in the mixture (set automatically).
 
     Class Attributes:
-        _registry (dict): Maps class names and aliases to class objects.
+        _registry (dict): Mapping from names and aliases to subclasses.
 
-    Methods:
-        __iter__(): Iterates over the main attributes as key-value pairs.
-        __repr__(): Pretty-prints internal state.
-        __str__(): Returns a short description.
-        __or__(other): Defines `|` as lumping operator (returns a lumped object).
-        __add__(other): Placeholder to represent reaction with `+`.
-        register(cls): Class decorator to register species and their aliases.
-        create(name, **kwargs): Factory method using name or alias.
+    Core Properties:
+        isradical (bool): True if species has nonzero free valence.
+        ishydroperoxide (bool): True if reactiveFunction is "COOH".
+        isreactive (bool): True if species has a defined reaction partner/product.
+        islumped (bool): True if species is a lumped group of species.
+        listProducts (dict): Maps reactive functions → product class names.
+        formattedProducts (dict): Maps reactive functions → formatted product names (root + suffix).
 
-    Properties:
-        isradical: True if the species has free valence.
-        isradical_onC: True if radical is centered on C.
-        isradical_onO: True if radical is centered on O.
-        ishydroperoxide: True if reactiveFunction is "COOH".
-        isreactive: True if the species has defined `reactWith`.
-        islumped: True if the species is a `lumped` subclass.
+    Behavior:
+        __or__(other): Lump two species (returns a `lumped` object).
+        __add__(other): Placeholder for defining reaction A + B.
+        __iter__(): Iterator over main attributes.
+        __repr__(), __str__(): Print-friendly formatting.
+
+    Class Methods:
+        register(cls): Decorator to register subclasses (with aliases).
+        create(name, **kwargs): Factory method to instantiate from alias or class name.
+
+    Notes:
+        - `reactiveFunction`, `reactWith`, and `product` must be defined in subclasses.
+        - `reactWith` may be a list of functional groups or None (monomolecular).
+        - Products can be a string, tuple (ordered), or set (unordered).
+        - Naming conventions follow: name = root + suffix (e.g., L1OO• from root L1 + suffix OO•).
 
     Example:
-        >>> mono = species.create('C1H', concentration=1.0)
-        >>> print(mono)
-        <L1H - index=None> of class monoAllylicCH with conc.=1.0
-        >>> mono.isradical
-        False
-        >>> alk = species.create('C1', concentration=0.01)
-        >>> ox = species.create('O2')
-        >>> rxn = alk + ox  # placeholder for a reaction
-        >>> lump = mono | alk  # lumping operation
-        >>> print(lump.name)
-        lump_L1H_L1•
+        @species.register
+        class monoAllylicCH(species):
+            suffix = "H"
+            reactiveFunction = "CH"
+            reactWith = ["COO•", "CO•"]
+            product = ["monoAllylicC"]
+            defaultRoot = "L1"
+            defaultName = "L1H"
+
+    See also:
+        - mixture: For managing collections of species.
+        - reaction: For defining A + B → C + D.
+        - lumped: For combining species into pseudo-compounds.
     """
+
     _registry = {}
 
     def __init__(self, *, root=None, name='', shortname='', concentration=0.0, index=None, _alias_used=None):
@@ -835,26 +1786,36 @@ class species:
     @property
     def isradical(self):
         """True if species has free valence (i.e., is a radical)."""
+        if not hasattr(self, "freevalence") or self.freevalence is None:
+            return None
         return self.freevalence > 0 if hasattr(self, "freevalence") else False
 
     @property
     def isradical_onC(self):
         """True if radical center is on carbon."""
+        if not hasattr(self, "freevalenceHolder") or self.freevalenceHolder is None:
+            return None
         return self.freevalenceHolder == "C" if self.freevalence else False
 
     @property
     def isradical_onO(self):
         """True if radical center is on oxygen."""
+        if not hasattr(self, "freevalenceHolder") or self.freevalenceHolder is None:
+            return None
         return self.freevalenceHolder == "O" if self.freevalence else False
 
     @property
     def ishydroperoxide(self):
         """True if reactiveFunction is 'COOH', interpreted as a hydroperoxide."""
+        if not hasattr(self,"reactiveFunction") or self.reactiveFunction is None:
+            return None
         return self.reactiveFunction == "COOH"
 
     @property
     def isreactive(self):
         """True if the species leads to at least one product."""
+        if not hasattr(self,"reactiveFunction") or self.reactiveFunction is None:
+            return None
         return hasattr(self, "product") and self.product is not None
 
     @property
@@ -992,6 +1953,42 @@ class species:
 # %% Lumped Class
 @species.register
 class lumped(species):
+    """
+    Lumped species class representing the aggregate behavior of multiple individual species.
+
+    This class is used to group species that are chemically or functionally equivalent
+    in a given context (e.g., radicals with similar reactivity, isomers, or chain-length variants).
+
+    The `lumped` object behaves like a single species whose concentration is the sum
+    of its components. It inherits from the `species` base class but overrides key attributes.
+
+    Attributes:
+        species (list[species]): List of `species` instances being lumped.
+        name (str): Default name is "lump_" + joined individual names.
+        index (None): Lumped species are not indexed in the mixture.
+        concentration (float): Total concentration of included species.
+        shortname (str): Default shorthand label ("LM").
+        root (None): No root is assigned.
+
+    Usage Example:
+        >>> LOOH1 = species.create("L1OOH", concentration=0.1)
+        >>> LOOH2 = species.create("L2OOH", concentration=0.2)
+        >>> LOOH3 = species.create("L3OOH", concentration=0.3)
+        >>> LOOH = lumped([LOOH1, LOOH2, LOOH3])
+        >>> print(LOOH.name)
+        lump_L1OOH_L2OOH_L3OOH
+        >>> print(LOOH.concentration)
+        0.6
+
+    Notes:
+        - Lumped species are useful for reducing model complexity or matching experimental resolution.
+        - They can be passed to plotting, integration, or export functions just like other species.
+        - Operations on lumped species do not propagate changes back to the individual species.
+
+    See also:
+        - species.__or__: Supports the `|` operator for combining species.
+    """
+
     def __init__(self, species_list):
         self.species = species_list
         self.name = "lump_" + "_".join(sp.name for sp in species_list)
@@ -999,48 +1996,66 @@ class lumped(species):
         self.concentration = sum(sp.concentration for sp in species_list)
         self.shortname = "LM"
         self.root = None
-
+        self.reactiveFunction = None
+        self.freevalence = None
 
 
 # %% Specific Chemical Classes derived from species
-
-# _redoxRank is used to which reagent is A and B in A + B -> C + D to get a unique representation of each reaction
-# enforced rule: _redoxRank(B) > _redoxRank(A)
-
-# | Species Class   | Description                 | Allylicity | Role in Redox      | Suggested `_redoxRank` |
-# | --------------- | --------------------------- | ---------- | ------------------ | ---------------------- |
-# | `monoAllylicCH` | Primary RH donor (labile H) | 1          | Mild reductant     | 3                      |
-# | `diAllylicCH`   | Slightly more reactive      | 2          | Mild reductant     | 2.5                    |
-# | `triAllylicCH`  | Very labile H               | 3          | Stronger reductant | 2                      |
-
-# | Species         | Allylic context | OS estimate (central C) | Justification                                  |
-# | --------------- | --------------- | ----------------------- | ---------------------------------------------- |
-# | `monoAllylicCH` | C=C–CH          | –1                      | Single allylic C–H                             |
-# | `diAllylicCH`   | C=C–CH–C=C      | \~–0.5 to –1            | More resonance, slightly more electron-rich    |
-# | `triAllylicCH`  | C=C–CH–C=C–C=C  | \~0                     | High delocalization, lower effective reduction |
-
-# | Species Type           | Central Atom | Oxidation State | Redox Rank  |
-# | ---------------------- | ------------ | --------------- | ----------- |
-# | alkyl radical (C•)     | C            | \~0             | 4           |
-# | hydroperoxide (ROOH)   | O            | –1              | 6           |
-# | alkoxyl radical (RO•)  | O            | –1              | 5           |
-# | peroxyl radical (ROO•) | O            | \~0             | 7           |
-# | dioxygen (O₂)          | O            | 0               | 8 (oxidant) |
-# | alcohol (ROH)          | C/O          | \~0             | 3           |
-# | aldehyde/ketone        | C            | +1/+2           | 2           |
-# | carboxylic acid        | C            | +3              | 1           |
-
 """
-    Derived species classes
-        reactiveFunction and reactWith determine the possible reactions between substances/species
-        None is used for monomolecular reactions (decomposition)
-        product lists products as:
-            - regular strings → single products.
-            - set → unordered products (used for homolytic monomolecular decompositions),
-            - tuple → ordered products (used for bimolecular reactions)
-        Use name, root, suffix to name substance/species.
-"""
+Specific Reaction Rate Constants
+--------------------------------
 
+This section provides structured kinetic data extracted from the two primary sources:
+
+[1] Touffet M., Smith P., Vitrac O., *A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures*,
+    Food Research International, 173(1), 2023, 113289. https://doi.org/10.1016/j.foodres.2023.113289
+
+[2] Touffet M., Vitrac O., *Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms*,
+    Food Chemistry, 481, 2025, 143952. https://doi.org/10.1016/j.foodchem.2025.143952
+
+Each reaction is represented by a unique fingerprint (e.g., "L1H + HO• → L1• + H2O") and registered via the `reactionRateDB` class.
+
+The database supports:
+    - Arrhenius parameters (k₀, Ea, T₀)
+    - Diffusion-limited kinetics (Smoluchowski model)
+    - Viscosity dependence (η(T))
+    - Cross-reaction inference via geometric averaging
+    - Consistent unit handling and data export to pandas DataFrame
+
+🔎 Redox Ranking Justification (`_redoxRank`)
+--------------------------------------------
+
+The `_redoxRank` attribute is used to consistently order reactants in A + B → C + D schemes.
+It reflects both electron donor/acceptor strength and oxidation state:
+
+| Species Class           | Description                           | Oxidation State | Redox Rank | Notes                        |
+|------------------------|---------------------------------------|-----------------|------------|------------------------------|
+| Carboxylic Acid        | COOH group                            | +3              | 1          | Stable product               |
+| Aldehyde/Ketone        | CHO or C=O                            | +2 to +1        | 2          | From beta-scission           |
+| Alcohol                | COH                                   | 0               | 3          | From reduction               |
+| Alkyl radical (C•)     | Unpaired electron on C                | ~0              | 4          | Initial oxidation product    |
+| Alkoxyl radical (RO•)  | Unpaired electron on O                | –1              | 5          | From ROOH decomposition      |
+| Hydroperoxide (ROOH)   | OOH group                             | –1              | 6          | Source of radicals           |
+| Peroxyl radical (ROO•) | O–O• group                            | ~0              | 7          | Common chain carrier         |
+| Dioxygen (O₂)          | Triplet O₂                            | 0               | 8          | Strong oxidant               |
+
+This ranking ensures that symmetric reactions are ordered consistently and
+that cross-reactions can be constructed with predictable canonical forms.
+
+
+🧪 Oxidation State (OS) Estimation and Allylic Context
+------------------------------------------------------
+
+The allylic context of RH donors (CH-type) affects both bond dissociation energy and redox potential. This table connects allylicity to effective electron-donating character and thus reactivity.
+
+| Species         | Allylic context   | OS estimate (central C) | Justification                                  |
+|-----------------|-------------------|--------------------------|------------------------------------------------|
+| `monoAllylicCH` | C=C–CH            | –1                       | Single allylic C–H                             |
+| `diAllylicCH`   | C=C–CH–C=C        | ~–0.5 to –1              | More resonance, slightly more electron-rich    |
+| `triAllylicCH`  | C=C–CH–C=C–C=C    | ~0                       | High delocalization, lower effective reduction |
+
+This classification is crucial for automated rule generation and mechanistic modeling across large chemical libraries or in generative workflows (LLM-driven).
+"""
 
 @species.register
 class oxygen(species):
@@ -1388,7 +2403,7 @@ class terminationPolymers(species):
     defaultRoot = "polymer"
     suffix = "-polymer"
     allylic = None
-    reactiveFunction = None
+    reactiveFunction = "-polymer"
     freevalence = 0
     freevalenceHolder = None
     reactWith = None
@@ -1629,10 +2644,77 @@ class H2O(species):
 
 # %% Base Reaction Rate Constants Class
 class reactionRateDB:
+    """
+    Database and container class for reaction rate constants.
+
+    This class enables registration, storage, and retrieval of kinetic parameters
+    associated with elementary reactions involved in radical oxidation mechanisms.
+    It is designed to support both monomolecular and bimolecular reactions, including
+    Arrhenius parameters, solvent-dependent viscosity corrections, and diffusion limits.
+
+    Each entry corresponds to a uniquely defined reaction fingerprint (e.g., "L1OOH -> L1O• + HO•")
+    and may include confidence intervals, diffusion-limited behavior, and Smoluchowski model parameters.
+
+    Class Attributes:
+        _registry (dict): Maps fingerprints to lists of registered entries.
+
+    Instance Attributes:
+        fingerprint (str): Reaction descriptor in canonical form.
+        T0 (float): Reference temperature [°C].
+        Tunits (str): Units of T0.
+        k0 (float): Pre-exponential factor (Arrhenius rate at T0).
+        k0_CI (float or None): Confidence interval on k0.
+        kunits (str): Units of k0 (e.g., "m³·mol⁻¹·s⁻¹").
+        Ea (float): Activation energy [J/mol].
+        Ea_CI (float or None): Confidence interval on Ea.
+        Eaunits (str): Units of activation energy.
+        source (str): Source or reference for the entry (e.g., literature citation).
+        diffusionLimited (bool): Whether rate is capped by diffusion.
+        ratio_rgh (float): Radius-of-gyration to hydrodynamic-radius ratio.
+        eta0 (float): Reference viscosity [Pa·s].
+        eta_Ea (float): Activation energy for viscosity [J/mol].
+        eta_T0 (float): Reference temperature for viscosity model [°C].
+        etaunits (str): Units for viscosity.
+        phi (float): Scaling factor used for cross-reaction inference.
+
+    Methods:
+        __init__: Creates and registers a new rate constant entry.
+        __iter__: Iterator over main fields.
+        __str__, __repr__: Human-readable and detailed representations.
+
+    Class Methods:
+        get(fingerprint): Return all entries for a given fingerprint.
+        get_latest(fingerprint): Return the last registered entry for a fingerprint.
+        to_dataframe(): Export the full database to a pandas DataFrame.
+
+    Usage Example:
+        reactionRateDB(
+            fingerprint="L1OOH -> L1O• + HO•",
+            T0=140,
+            k0=2.11e-4,
+            Ea=74.8e3,
+            source="Touffet et al. 2023"
+        )
+
+    Notes:
+        - This class does not enforce uniqueness; multiple entries per fingerprint are allowed.
+        - Cross-reaction rates are computed at runtime using self-reaction entries and `reaction` logic.
+        - The class is automatically populated from structured datasets in published literature.
+
+    See also:
+        - reaction: Uses this class to populate kinetic parameters.
+        - mixture.populateReactionRates(): Assigns values to all reactions in a mixture.
+    """
+
     _registry = defaultdict(list)
 
     def __init__(self, *, fingerprint, T0, k0, k0_CI=None, Ea, Ea_CI=None,
-                 Tunits = "°C", kunits = "m³/mol/s", Eaunits = "J/mol", source=""):
+                 Tunits = "°C", kunits = "m³·mol⁻¹·s⁻¹", Eaunits = "J·mol⁻¹", source="",
+                 diffusionLimited = False, ratio_rgh = 0.77,
+                 eta0 = 1.9e-3, eta_Ea = 17.0e3, eta_T0 = 80, etaunits = "Pa·s",
+                 phi = 2.0
+                 ):
+
         self.fingerprint = fingerprint
         self.T0 = T0
         self.Tunits = Tunits
@@ -1643,6 +2725,13 @@ class reactionRateDB:
         self.Ea_CI = Ea_CI
         self.Eaunits = Eaunits
         self.source = source
+        self.diffusionLimited = diffusionLimited
+        self.ratio_rgh = ratio_rgh
+        self.eta0 = eta0
+        self.eta_Ea = eta_Ea
+        self.eta_T0 = eta_T0
+        self.etaunits = etaunits
+        self.phi = phi
 
         # Register in global registry
         self.__class__._registry[fingerprint].append(self)
@@ -1696,9 +2785,10 @@ class reactionRateDB:
                 "reaction": r.fingerprint,
                 "T0 (°C)": r.T0,
                 "k0 (SI units)": r.k0,
-                "k0_CI (SI units)": r.k0_CI,
+                #"k0_CI (SI units)": r.k0_CI,
                 f"Ea ({r.Eaunits})": r.Ea,
-                f"Ea_CI ({r.Eaunits})": r.Ea_CI,
+                #f"Ea_CI ({r.Eaunits})": r.Ea_CI,
+                "eta0 (r.etaunits)": r.eta0,
             }
             for rgroup in cls._registry.values()
             for r in rgroup
@@ -1707,13 +2797,24 @@ class reactionRateDB:
 
 # %% Specific Reaction Rate Constants
 """
-Entries from Table 2 in
-    Maxime Touffet, Paul Smith, Olivier Vitrac,
-    A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures,
-    Food Research International, 173(1),2023,113289
-    https://doi.org/10.1016/j.foodres.2023.113289.
+Specific Reaction Rate Constants
+--------------------------------
 
-Note that the values defined here are automatically registered at instantiation
+This section registers experimental or estimated reaction rate constants using the `reactionRateDB` class. The database enables consistent retrieval, inference, and propagation of kinetic parameters (Arrhenius and Smoluchowski terms) across all supported reactions.
+
+Sources:
+    [1] Touffet M., Smith P., Vitrac O., *A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures*,
+        Food Research International, 173(1), 2023, 113289. https://doi.org/10.1016/j.foodres.2023.113289
+
+    [2] Touffet M., Vitrac O., *Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms*,
+        Food Chemistry, 481, 2025, 143952. https://doi.org/10.1016/j.foodchem.2025.143952
+
+Functionalities:
+    - Arrhenius and Smoluchowski kinetic models
+    - Inheritance of cross-reactions via geometric mean logic
+    - Viscosity dependence of diffusion-limited reactions
+    - Documentation of each kinetic entry (units, source)
+    - Automatic integration into simulation objects
 """
 
 # R1-3 (monomolecular decomposition of hydroperoxides) in Touffet et al., 2023
@@ -1806,7 +2907,7 @@ kbb2 = reactionRateDB(
 kbb3 = reactionRateDB(
     fingerprint="L3H + HO• -> L3• + H2O",
     T0=140,
-    k0=1.0e7, # guessed from kbb3
+    k0=1.0e7, # guessed from kbb2
     k0_CI=0,
     Ea=0,
     Ea_CI=0,
@@ -1918,6 +3019,8 @@ kt1 = reactionRateDB(
     k0_CI=0.0,
     Ea=0.0e3,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.9e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
@@ -1928,6 +3031,8 @@ kt2 = reactionRateDB(
     k0_CI=0.0,
     Ea=0.0e3,
     Ea_CI=0,
+    diffusionLimited = True,
+    eta0 = 1.6e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
@@ -1938,6 +3043,8 @@ kt3 = reactionRateDB(
     k0_CI=0.0,
     Ea=0.0e3,
     Ea_CI=0,
+    diffusionLimited = True,
+    eta0 = 1.5e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
@@ -1949,57 +3056,69 @@ ktt1 = reactionRateDB(
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.9e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
 ktt2 = reactionRateDB(
-    fingerprint="L1• + L1OO• -> L1-polymer + L1-polymer",
+    fingerprint="L2• + L2OO• -> L2-polymer + L2-polymer",
     T0=140,
     k0=1.0e5,
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.6e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
 ktt3 = reactionRateDB(
-    fingerprint="L2• + L2OO• -> L1-polymer + L1-polymer",
+    fingerprint="L3• + L3OO• -> L3-polymer + L3-polymer",
     T0=140,
     k0=1.0e5, # from ktt3
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.5e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
 # R43-51 (termination products via alkyl+alcoxyl radicals) in Touffet et al., 2023
 kttt1 = reactionRateDB(
-    fingerprint="L3• + L3OO• -> L1-polymer + L1-polymer",
+    fingerprint="L1• + L1OO• -> L1-polymer + L1-polymer",
     T0=140,
     k0=1.0e5, # from kttt2
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.9e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
 kttt2 = reactionRateDB(
-    fingerprint="L1• + L1• -> L1-polymer + L1-polymer",
+    fingerprint="L2• + L2• -> L2-polymer + L2-polymer",
     T0=140,
     k0=1.0e5,
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.6e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
 kttt3 = reactionRateDB(
-    fingerprint="L1• + L1• -> L1-polymer + L1-polymer",
+    fingerprint="L3• + L3• -> L3-polymer + L3-polymer",
     T0=140,
     k0=1.0e5, # from kttt3
     k0_CI=0.0,
     Ea=0.0,
     Ea_CI=0.0,
+    diffusionLimited = True,
+    eta0 = 1.5e-3,
     source="Table 2 in https://doi.org/10.1016/j.foodres.2023.113289"
 )
 
@@ -2051,15 +3170,23 @@ if __name__ == '__main__':
     ktable = reactionRateDB.to_dataframe()
     print(ktable)
 
-    # basic FAME oxidation
+    # Oxidation of a FAME mixture
     oil = mixture()
     oil.add("L1H",concentration=3000)
+    oil.add("L2H",concentration=1000)
+    oil.add("L3H",concentration=500)
     oil.add("L1OOH",concentration=100)
     oil.add("O2",concentration=10)
     oil.addProducts()
     oil.addReactions()
     oil.populateReactionRates()
     oil.reactions
+    polar = oil.lumped_polar_compounds()
+    oilmodel = mixtureKinetics(oil) # kinetic model
+    oilmodel.solve(10*24*3600,60)
+    oilmodel.plot()
+    df = oilmodel.results_as_dataframe(["L1H","L2H","L3H","L1OOH","L2OOH","L3OOH"])
+    print(df)
 
     # low-level examples
     O2 = oxygen()
