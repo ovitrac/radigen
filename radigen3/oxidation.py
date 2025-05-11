@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Module: radigen3.oxidation.py
 
@@ -44,7 +46,7 @@ Key References:
 
 
 Author: Olivier Vitrac — olivier.vitrac@gmail.com
-Revision: 2025-05-07
+Revision: 2025-05-11
 """
 
 # %% Indentication
@@ -55,19 +57,191 @@ __credits__ = ["Olivier Vitrac"]
 __license__ = "MIT"
 __maintainer__ = "Olivier Vitrac"
 __email__ = "olivier.vitrac@gmail.com"
-__version__ = "0.40"
+__version__ = "0.51"
 
 
 # %% Dependencies
-import re, math
+import os, re, math, copy
 import pandas as pd
 import numpy as np
+from types import SimpleNamespace
+from datetime import datetime
+from textwrap import indent
+from contextlib import contextmanager
+from collections import defaultdict
 from scipy.sparse import dok_matrix, csr_matrix
 from scipy.integrate import solve_ivp
+from scipy.interpolate import interp1d
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from collections import defaultdict
 
-__all__ = ["species","reaction","reactionRateDB","mixture","mixtureKinetics", "lumped"]
+__all__ = ["species","reaction","reactionRateDB","mixture","mixtureKinetics","lumped","TKO2cycle"]
+
+# %% Figure Functions
+_fig_metadata_atrr_ = "__filename__"
+def is_valid_figure(fig):
+    """
+    Checks if `fig` is a valid and open Matplotlib figure.
+
+    Parameters:
+    - fig: object to check
+
+    Returns:
+    - bool: True if `fig` is a valid, open Matplotlib figure.
+    """
+    return isinstance(fig, Figure) and hasattr(fig, 'canvas') and fig.canvas is not None
+
+def _generate_figname(fig, extension):
+    """
+    Generate a clean filename based on metadata or current date/time.
+
+    Parameters:
+    - fig: Matplotlib figure object.
+    - extension: File extension ('.pdf' or '.png').
+
+    Returns:
+    - str: Cleaned filename with correct extension.
+    """
+    # Try to retrieve the hidden filename metadata
+    if hasattr(fig, _fig_metadata_atrr_):
+        filename = getattr(fig, _fig_metadata_atrr_)
+    else:
+        # Default: Use date-time format if metadata is missing
+        filename = "fig" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Clean filename (replace spaces, trim, remove special characters)
+    filename = filename.strip().replace(" ", "_")
+    # Ensure correct file extension
+    if not filename.lower().endswith(extension):
+        filename += extension
+    return filename
+
+def print_pdf(fig, filename="", destinationfolder=os.getcwd(), overwrite=False, dpi=300):
+    """
+    Save a given figure as a PDF.
+
+    Parameters:
+    - fig: Matplotlib figure object to be saved.
+    - filename: str, PDF filename (auto-generated if empty).
+    - destinationfolder: str, folder to save the file.
+    - overwrite: bool, overwrite existing file.
+    - dpi: int, resolution (default=300).
+    """
+    if not is_valid_figure(fig):
+        print("no valid figure")
+        return
+    # Generate filename if not provided
+    if not filename:
+        filename = _generate_figname(fig, ".pdf")
+    # add extension if missing
+    if not filename.endswith(".pdf"):
+        filename = filename+".pdf"
+    # Ensure full path
+    filename = os.path.join(destinationfolder, filename)
+    # Prevent overwriting unless specified
+    if not overwrite and os.path.exists(filename):
+        print(f"File {filename} already exists. Use overwrite=True to replace it.")
+        return
+    # Save figure as PDF
+    fig.savefig(filename, format="pdf", dpi=dpi, bbox_inches="tight")
+    print(f"Saved PDF: {filename}")
+
+def print_png(fig, filename="", destinationfolder=os.getcwd(), overwrite=False, dpi=300):
+    """
+    Save a given figure as a PNG.
+
+    Parameters:
+    - fig: Matplotlib figure object to be saved.
+    - filename: str, PNG filename (auto-generated if empty).
+    - destinationfolder: str, folder to save the file.
+    - overwrite: bool, overwrite existing file.
+    - dpi: int, resolution (default=300).
+    """
+    if not is_valid_figure(fig):
+        print("no valid figure")
+        return
+    # Generate filename if not provided
+    if not filename:
+        filename = _generate_figname(fig, ".png")
+    # add extension if missing
+    if not filename.endswith(".png"):
+        filename = filename+".png"
+    # Ensure full path
+    filename = os.path.join(destinationfolder, filename)
+    # Prevent overwriting unless specified
+    if not overwrite and os.path.exists(filename):
+        print(f"File {filename} already exists. Use overwrite=True to replace it.")
+        return
+    # Save figure as PNG
+    fig.savefig(filename, format="png", dpi=dpi, bbox_inches="tight")
+    print(f"Saved PNG: {filename}")
+
+def print_figure(fig, filename="", destinationfolder=os.getcwd(), overwrite=False, dpi={"png":150,"pdf":300}):
+    """
+    Save the figure in both PDF and PNG formats.
+
+    Parameters:
+    - fig: Matplotlib figure object to be saved.
+    - filename: str, base filename (auto-generated if empty).
+    - destinationfolder: str, folder to save the files.
+    - overwrite: bool, overwrite existing files.
+    - dpi: int, resolution (default=300).
+    """
+    if is_valid_figure(fig):
+        print_pdf(fig, filename, destinationfolder, overwrite, dpi["pdf"])
+        print_png(fig, filename, destinationfolder, overwrite, dpi["png"])
+    else:
+        print("no valid figure")
+
+# Define PrintableFigure class
+class PrintableFigure(Figure):
+    """Custom Figure class with show and print methods."""
+
+    def show(self, display_mode=None):
+        """
+        Show figure based on the environment:
+        - In Jupyter: Uses display(fig)
+        - In scripts or GUI mode: Uses plt.show()
+        """
+        try:
+            get_ipython  # Check if running inside Jupyter
+            if display_mode is None or display_mode == "auto":
+                display(self)  # Preferred for Jupyter
+            else:
+                super().show()  # Use Matplotlib’s default show
+        except NameError:
+            super().show()  # Use Matplotlib’s default show in scripts
+
+    def print(self, filename="", destinationfolder=os.getcwd(), overwrite=True, dpi={"png":150,"pdf":300}):
+        print_figure(self, filename, destinationfolder, overwrite, dpi)
+
+    def print_png(self, filename="", destinationfolder=os.getcwd(), overwrite=False, dpi=300):
+        print_png(self, filename, destinationfolder, overwrite, dpi)
+
+    def print_pdf(self, filename="", destinationfolder=os.getcwd(), overwrite=False, dpi=300):
+        print_pdf(self, filename, destinationfolder, overwrite, dpi)
+
+# ✅ Store original references
+original_plt_figure = plt.figure
+original_plt_subplots = plt.subplots
+
+# ✅ Override `plt.figure()` to use PrintableFigure
+def custom_plt_figure(*args, **kwargs):
+    """Ensure all figures use PrintableFigure."""
+    kwargs.setdefault("FigureClass", PrintableFigure)
+    return original_plt_figure(*args, **kwargs)
+
+# ✅ Override `plt.subplots()` to return PrintableFigure
+def custom_plt_subplots(*args, **kwargs):
+    """Ensure plt.subplots() returns a PrintableFigure."""
+    fig, ax = original_plt_subplots(*args, **kwargs)  # Create normal figure
+    fig.__class__ = PrintableFigure  # Explicitly convert to PrintableFigure
+    return fig, ax
+
+# ✅ Apply overrides
+plt.figure = custom_plt_figure
+plt.subplots = custom_plt_subplots
+plt.FigureClass = PrintableFigure  # Ensure all figures default to PrintableFigure globally
+plt.rcParams['figure.figsize'] = (8, 6)  # Optional: Default size
 
 # %% Reaction Class
 class reaction:
@@ -412,6 +586,17 @@ class mixture:
         _reaction_hashes (set): Set of reaction fingerprints for uniqueness.
         _reaction_counter (int): Tracks reaction indices for auto-numbering.
 
+    Properties:
+        listReactiveFunctions (list): lists unique reactive functions held by species in the mixture.
+        listProductsBySubstance (dict): lists the products it can form for each substance
+        listProducts (list): lists the unique names of all product species that can be formed
+        listFormattedProductsBySubstance (dict): lists the *named* products it can form for each each substance
+        listFormattedProducts (list): lists the unique *named* products that can be formed in the mixture
+        species (list): lists species names
+        substances (list(species)): lists species objects
+        reactions (list(reactions)): lists reactions objects
+        reactionScheme (str): Reaction scheme as a string
+
     Key Methods:
         add(clsname, name=..., **kwargs) → species
             Add a species to the mixture by class or alias name.
@@ -451,6 +636,15 @@ class mixture:
             Return a lumped species for all radicals centered on oxygen atoms.
         lumped_polar_compounds() → lumped
             Return a lumped species for polar compounds (any compound with at least one oxygen).
+        lumped_polymers() → lumped
+            Return a lumped species for all termination polymers (reactiveFunction = "-polymer").
+
+        copy() → mixture
+            Return a copy of a mixture.
+
+        mix1 + mix2 → mixture
+            Operator '+' combine mixtures and dilute them accordingly
+
 
     Usage Example:
         oil = mixture()
@@ -707,6 +901,7 @@ class mixture:
 
         return result
 
+    @property
     def listProducts(self):
         """
         Lists the unique names of all product species that can be formed
@@ -1029,6 +1224,11 @@ class mixture:
         """Returns defined reactions in the mixture as a list"""
         return list(self._reactions.values())
 
+    @property
+    def reactionScheme(self):
+        """Returns reaction scheme as a string"""
+        return "\n".join([str(r) for r in self.reactions])
+
     def getReactionByFingerprint(self, fingerprint):
         """
         Retrieves the reaction object matching a given fingerprint string.
@@ -1119,42 +1319,46 @@ class mixture:
 
         return pd.DataFrame(S, index=row_labels, columns=col_labels)
 
-    def get_lumped_by_function(self, function):
+    def get_lumped_by_function(self, function,color=None,linestyle='-'):
         """Returns a lumped object for all species with a given reactive function."""
         matches = [sp for sp in self if getattr(sp, "reactiveFunction", None) == function]
-        return lumped(matches) if matches else None
+        return lumped(matches,color=color,linestyle=linestyle) if matches else None
 
-    def get_lumped_by_pattern(self, pattern, attr="name"):
+    def get_lumped_by_pattern(self, pattern, attr="name",color=None,linestyle="-"):
         """Returns a lumped object for species whose attribute (default 'name') matches a regex."""
         regex = re.compile(pattern)
         matches = [sp for sp in self if regex.match(getattr(sp, attr, ""))]
-        return lumped(matches) if matches else None
+        return lumped(matches,color=color,linestyle=linestyle) if matches else None
 
-    def lumped_hydroperoxides(self):
+    def lumped_polymers(self,color="DarkSlateGray",linestyle="-"):
+        """Returns a lumped species containing all polymer termination products."""
+        return self.get_lumped_by_function("-polymer",color=color,linestyle=linestyle)
+
+    def lumped_hydroperoxides(self,color="Magenta",linestyle="-"):
         """Returns a lumped species containing all hydroperoxides (COOH)."""
-        return self.get_lumped_by_function("COOH")
+        return self.get_lumped_by_function("COOH",color=color,linestyle=linestyle)
 
-    def lumped_alcohols(self):
+    def lumped_alcohols(self,color="Indigo",linestyle="-"):
         """Returns a lumped species containing all aldehydes (COH)."""
-        return self.get_lumped_by_function("COH")
+        return self.get_lumped_by_function("COH",color=color)
 
-    def lumped_aldehydes(self):
+    def lumped_aldehydes(self,color="DarkViolet",linestyle="-"):
         """Returns a lumped species containing all aldehydes (CHO)."""
-        return self.get_lumped_by_function("CHO")
+        return self.get_lumped_by_function("CHO",color=color,linestyle=linestyle)
 
-    def lumped_ketones(self):
+    def lumped_ketones(self,color="DarkSlateBlue",linestyle="-"):
         """Returns a lumped species containing all aldehydes (CHO)."""
-        return self.get_lumped_by_function("C=O")
+        return self.get_lumped_by_function("C=O",color=color,linestyle=linestyle)
 
-    def lumped_radicals_on_C(self):
+    def lumped_radicals_on_C(self,color="DarkGreen",linestyle=":"):
         """Returns a lumped species with radicals centered on carbon atoms."""
         matches = [sp for sp in self if sp.isradical_onC]
-        return lumped(matches) if matches else None
+        return lumped(matches,color=color,linestyle=linestyle) if matches else None
 
-    def lumped_radicals_on_O(self):
+    def lumped_radicals_on_O(self,color="Olive",linestyle="-."):
         """Returns a lumped species with radicals centered on oxygen atoms."""
         matches = [sp for sp in self if sp.isradical_onO]
-        return lumped(matches) if matches else None
+        return lumped(matches,color=color,linestyle=linestyle) if matches else None
 
     def lumped_polar_compounds(self):
         """Returns a lumped species including compounds with at least one oxygen (based on reactiveFunction/suffix)."""
@@ -1164,105 +1368,161 @@ class mixture:
         ]
         return lumped(matches) if matches else None
 
+    def copy(self):
+        """
+        Returns a deep copy (clone) of the current mixture instance.
+
+        This method ensures that all species, reactions, and internal structures
+        are duplicated without shared references. Modifying the clone will not
+        affect the original mixture.
+
+        Returns:
+            mixture: A fully independent clone of the original mixture.
+        """
+        return copy.deepcopy(self)
+
+    def __add__(self, other):
+        """
+        Combine two mixture instances via physical mixing.
+
+        This operator enables the addition of two compatible `mixture` objects. The result is a
+        new mixture with:
+
+            - The combined volume (V = V₁ + V₂)
+            - Volume-weighted concentrations of each species
+            - Physical properties inherited from the left operand (self), except volume
+            - Same species names and classes (must match exactly)
+
+        Constraints:
+            - Species names in both mixtures must match exactly.
+            - Reactions are not recomputed; only species and concentrations are merged.
+
+        Returns:
+            mixture: A new `mixture` instance representing the combination.
+
+        Raises:
+            TypeError: If `other` is not a `mixture`.
+            ValueError: If the two mixtures have mismatched species.
+
+        Example:
+            oil1 = mixture()
+            oil1.add("L1H", concentration=1000)
+            oil2 = mixture()
+            oil2.add("L1H", concentration=500)
+            mixed = oil1 + oil2  # L1H final concentration is volume-weighted average
+        """
+        if not isinstance(other, mixture):
+            raise TypeError("Can only mix with another mixture.")
+        # Check that substance names match
+        names1 = {sp.name for sp in self._substances}
+        names2 = {sp.name for sp in other._substances}
+        if names1 != names2:
+            raise ValueError("Cannot mix incompatible mixtures (different species).")
+        # Addition preserves volume
+        total_V = self.V + other.V
+        # left operand (self) has a higher precedence
+        mix = self.copy()
+        mix.name = f"{self.name}+{other.name}"
+        mix.volume = total_V
+        for sp in mix._substances:
+            other_sp = next(s for s in other._substances if s.name == sp.name)
+            new_conc = (sp.concentration * self.V + other_sp.concentration * other.V) / total_V
+            sp.concentration = new_conc
+        return mix
+
 
 # --------------------------------------------------------
 # Mixture representation for kinetic modeling
 # --------------------------------------------------------
 class mixtureKinetics:
     """
-    Class for building and solving the kinetic model of a chemical mixture under oxidation.
+    Solver class for time-resolved oxidation kinetics in reactive mixtures.
 
-    This class wraps a `mixture` object, extracts its species and reactions,
-    and constructs the associated ODE system governed by:
+    This class constructs and integrates the differential system for species concentrations:
 
         dC/dt = S · R(C, T) + source_terms(C, T)
 
     where:
-        - C is the vector of species concentrations [mol/m³]
-        - S is the stoichiometry matrix
-        - R is the reaction rate vector
-        - source_terms includes mass transport (e.g., O2 dissolution)
-        - Temperature T affects all Arrhenius and transport rates
+        - C: vector of concentrations [mol/m³]
+        - S: stoichiometric matrix
+        - R: reaction rate vector
+        - T: temperature (can be time-dependent)
+        - source_terms includes mass transport (e.g., O2₂ influx)
 
-    Supported mechanisms:
-        - Monomolecular and bimolecular reactions
-        - Decomposition of hydroperoxides (ROOH → RO• + HO•)
-        - Cage vs. free equilibrium in ROOH
-        - Cross-reactions parameterized via geometric mean inference
-        - Oxygen source term computed from solubility (Arai et al. 1989)
+    Key Features:
+        - Handles monomolecular and bimolecular mechanisms
+        - Automatically applies Arrhenius/Smoluchowski hybrid kinetics
+        - Models ROOH ↔ RO• + HO• with cage/free equilibrium
+        - Tracks oxygen flux using Henry's law and film model
+        - Solves stiff ODE systems using scipy.integrate.solve_ivp
+        - Supports arbitrary T(t) and kO₂(t) using a TKO2cycle object
+        - Can merge multiple simulations via the '+' operator
 
     Lumped Species Support:
-        `mixtureKinetics` includes a built-in registry to define and manage lumped species groups
-        (e.g., all hydroperoxides, all ketones, all C-centered radicals). These groups are defined as
-        `lumped` objects (i.e., collections of species) and can be registered under a symbolic name
-        via:
+        Lumped groups of species can be registered via:
+            model.register_lumped("LOOH", mix.lumped_hydroperoxides())
+        Registered lumped species can be plotted, tracked, and exported as if they were named species.
 
-            model.register_lumped("hydroperoxides", mixture.lumped_hydroperoxides())
+    Plotting:
+        - Colors and line styles are automatically detected from `_color` and `_linestyle` attributes.
+        - Lumped species are rendered with thicker lines and a '†' symbol in legends.
+        - Annotations show the curve maximum for each species if enabled.
 
-        Once registered:
-            - The name can be used in plotting and dataframe methods.
-            - The total concentration is computed as the sum over group members.
-            - The name is auto-added to plots and tables when `species=None`.
-
-        Example:
-            model.plot(["L1H", "hydroperoxides"])
-            model.results_as_dataframe(["O2", "hydroperoxides"])
-
-        The registry is accessed via:
-            model._lumped_registry   # dict[str, lumped]
-
-    Attributes:
-        mixture (mixture): The mixture object being simulated.
-        species_list (list): Ordered list of species.
-        reactions_list (list): Ordered list of reactions.
-        n_species (int): Number of individual species (excluding lumped).
-        n_reactions (int): Number of reactions.
-        _results (SimpleNamespace): Container for integration results.
-        _lumped_registry (dict): Internal registry for lumped species.
+    Dynamic Simulation Support:
+        By passing a `TKO2cycle` object to `solve(cycle=...)`, the solver will use time-varying temperature and oxygen transfer coefficients.
 
     Methods:
-        get_C0() → np.ndarray
-            Return the initial concentrations from species.
-        set_C(C: np.ndarray)
-            Set concentrations from a new C vector.
-        get_R(T: float, C: np.ndarray) → np.ndarray
-            Compute reaction rates at given temperature and concentrations.
-        get_dCdt(T: float, C: np.ndarray) → np.ndarray
-            Compute dC/dt from stoichiometry and source terms.
-        solve(tspan, T, C0=None, ...) → results
-            Integrate the system over time and store results.
+        solve(tspan, T, C0, ..., cycle=None)
+            Integrate the ODE system over time.
+        plot(species=None, ...)
+            Plot time-concentration profiles, including lumped groups.
+        results_as_dataframe(species=None)
+            Export results as a DataFrame.
+        get_interpolator()
+            Returns interpolator for concentrations at arbitrary time points.
+        get_C0(), set_C(C=None)
+            Retrieve or update species concentrations.
+        register_lumped(name, lumped_obj)
+            Register a lumped species group.
+        get_lumped_concentration(name)
+            Return total concentration over a lumped group.
+        copy()
+            Return a deep copy of the entire model and simulation state.
+        __add__(other)
+            Concatenate two compatible simulations for continuous kinetics.
 
-        register_lumped(name: str, lumped_obj: lumped)
-            Register a named group of species to include in plots and outputs.
-        get_concentration(name: str) → np.ndarray
-            Return concentration profile for a species or lumped group.
-        plot(species=None, **kwargs)
-            Plot concentration profiles, including lumped groups.
-        results_as_dataframe(species=None) → pd.DataFrame
-            Return results as a dataframe (species + lumped).
+    Static Methods:
+        parse_time_unit(tspan, unit)
+            Convert time input (e.g., (10, "days")) to seconds with canonical unit tracking.
 
-    Advanced:
-        - Uses pre-indexed hydroperoxides and O2 species to speed up simulation.
-        - Supports Arrhenius/Smoluchowski hybrid kinetics with diffusion limits.
-        - Equilibrium constants for ROOH cage/free are temperature-dependent.
+    Attributes:
+        name (str): Title of the model (e.g., "oxidation of oil")
+        mixture (mixture): Associated mixture instance
+        species_list (list): List of species in simulation
+        reactions_list (list): List of reactions used
+        n_species (int): Number of species
+        n_reactions (int): Number of reactions
+        _results (SimpleNamespace): Output from solve()
+        _lumped_registry (dict[str, lumped]): Named groups for tracking output
 
     Example:
         oil = mixture()
         oil.add("L1H", concentration=3000)
         oil.add("L1OOH", concentration=100)
         oil.add("O2", concentration=10)
-        oil.addProducts()
-        oil.addReactions()
-        oil.populateReactionRates()
+        oil.addProducts(); oil.addReactions(); oil.populateReactionRates()
 
         model = mixtureKinetics(oil)
-        model.register_lumped("hydroperoxides", oil.lumped_hydroperoxides())
-        model.solve(3600*24, T=60)
+        model.solve((5, 'days'), T=60)
         model.plot(["L1H", "hydroperoxides"])
+
+        df = model.results_as_dataframe()
+        print(df.head())
     """
 
-    def __init__(self, mixture):
+    def __init__(self, mixture, name=None):
         """mixtureKinetics constructor"""
+        self.name = mixture.name if name is None else name
         self.mixture = mixture
         self.species_list = sorted(mixture._substances, key=lambda sp: sp.index)
         self.reactions_list = sorted(mixture._reactions.values(), key=lambda r: r.index)
@@ -1317,8 +1577,16 @@ class mixtureKinetics:
         """Returns the initial concentration vector C0 from species in the mixture."""
         return np.array([sp.concentration for sp in self.species_list])
 
-    def set_C(self, C):
-        """Updates the concentrations of species in the mixture from a given concentration vector."""
+    def set_C(self, C=None):
+        """
+        Updates the concentrations of species in the mixture.
+
+        If C is None, uses the last simulated concentration vector from the final time point.
+        """
+        if C is None:
+            if self._results is None:
+                raise ValueError("No simulation results available. Run `solve()` first.")
+            C = self._results.y[:, -1]  # Last time point
         for sp, conc in zip(self.species_list, C):
             sp.concentration = conc
 
@@ -1435,45 +1703,110 @@ class mixtureKinetics:
         S, _, _ = self.mixture.buildStoichiometryMatrix(sparse=False)
         R = self.get_R(T, C)
         source = np.zeros(self.n_species, dtype=np.float64)
-
         if "O2" in self._source_indices:
             i = self._source_indices["O2"]
             source[i] = self.sourceO2(T, C[i])
-
         return S @ R + source
 
-    def solve(self, tspan, T=None, C0=None, species=None, method="BDF", rtol=1e-6, atol=1e-7, max_order=5, **kwargs):
+    @contextmanager
+    def temporary_kO2(self, new_kO2):
+        """Temporarily override current kO2 value"""
+        original_kO2 = self.mixture.kO2
+        self.mixture.kO2 = new_kO2
+        try:
+            yield
+        finally:
+            self.mixture.kO2 = original_kO2
+
+    def get_dCdt_dynamic(self, Tfunc, kO2func):
         """
-        Solves the system dC/dt = S·R(C,T) with optional oxygen source term.
+        Computes the time derivative of species concentrations under dynamic T(t) and  kO2(t) conditions
+
+            dC/dt = S · R(T(t), C) + source_vector(t)
+        """
+        def rhs(t, C):
+            T = Tfunc(t)
+            kO2 = kO2func(t)
+            with self.temporary_kO2(kO2):
+                S, _, _ = self.mixture.buildStoichiometryMatrix(sparse=False)
+                R = self.get_R(T, C)
+                source = np.zeros(self.n_species)
+                if "O2" in self._source_indices:
+                    i = self._source_indices["O2"]
+                    source[i] = self.sourceO2(T, C[i])
+                return S @ R + source
+        return rhs
+
+    def solve(self, tspan, T=None, C0=None, species=None, cycle=None, method="BDF", rtol=1e-6, atol=1e-7, max_order=5, **kwargs):
+        """
+        Integrate the system of ODEs dC/dt = S·R(C,T) with optional oxygen source and dynamic conditions.
+
+        Supports both constant and time-dependent temperature and oxygenation profiles. When a `TKO2cycle`
+        object is passed to `cycle`, the simulation will use the temperature and kO₂ values defined by the cycle
+        for each time point.
 
         Args:
-            tspan (float or tuple): Final time tf or (t0, tf)
-            T (float, optional): Temperature in °C
-            C0 (np.ndarray, optional): Initial concentrations
-            species (list[str], optional): Names of species to track
-            method (str): Solver method (e.g., 'LSODA', 'DOP853', etc.)
-            rtol, atol (float): Solver tolerances
-            max_order (int): Max solver order (used for implicit methods like LSODA)
-            **kwargs: Extra arguments for `solve_ivp`
+            tspan (float or tuple): Final time `tf` or `(t0, tf)` in seconds.
+                                    Can also be passed as (value, unit) tuples (e.g., (10, "days")).
+            T (float, optional): Constant temperature [°C] if no cycle is specified.
+            C0 (np.ndarray, optional): Initial concentration vector. If None, uses current species concentrations.
+            species (list[str], optional): Species to include in the result. Defaults to all species.
+            cycle (TKO2cycle, optional): Time-dependent temperature and oxygenation cycle object.
+            method (str): Integration method (e.g., 'BDF', 'LSODA').
+                          'BDF' recommended if the concentrations in radicals are initially 0
+            rtol (float): Relative tolerance.
+            atol (float): Absolute tolerance.
+            max_order (int): Maximum solver order (for implicit methods).
+            **kwargs: Additional arguments passed to `scipy.integrate.solve_ivp`.
 
         Returns:
-            Bunch object with attributes `t`, `y`, `species`
+            types.SimpleNamespace:
+                - t (np.ndarray): Time points [unit-scaled].
+                - y (np.ndarray): Concentrations at each time step.
+                - tunit (str): Original time unit (e.g., "days").
+                - tscale (float): Scale factor applied to time for output.
+                - concunits (str): Concentration units ("mol/m³").
+                - species (list[str]): Names of tracked species.
+                - success (bool): Whether the integration succeeded.
+                - message (str): Solver status message.
+                - solver (str): Solver method used.
+                - cycle (TKO2cycle or None): Applied cycle, if any.
+                - isCycle (bool): True if dynamic conditions were used.
         """
-        from scipy.integrate import solve_ivp
-        from types import SimpleNamespace
-
         # Allow single time value
+        tunit = "s"
         if isinstance(tspan, (int, float)):
-            tspan = (0.0, float(tspan))
+            tfinal,tunit,tscale = mixtureKinetics.parse_time_unit(tspan,tunit)
+            tinit = 0.0
+        elif isinstance(tspan,tuple):
+            if len(tspan)!=2:
+                raise ValueError('tspan must be (tinitial,tfinal) or (tfinal,"time unit")')
+            if isinstance(tspan[1],str):
+                tfinal,tunit,tscale = mixtureKinetics.parse_time_unit(tspan,tunit)
+                tinit = 0.0
+            else:
+                tinit,_,_ = mixtureKinetics.parse_time_unit(tspan[1],tunit)
+                tfinal,tunit,tscale = mixtureKinetics.parse_time_unit(tspan[1],tunit)
+        tspan = (float(tinit), float(tfinal))
 
-        # Default temperature and initial conditions
+        # Default temperature and initial conditions (no cycle)
         if T is None:
-            T = self.mixture.T
+            T = self.mixture.T if hasattr(self,'T') else None
+
         if C0 is None:
             C0 = self.get_C0()
 
-        # RHS Model
-        def rhs(t, C): return self.get_dCdt(T, C)
+        # RHSmodel Cycle conditions (if any)
+        if cycle is not None:
+            if not isinstance(cycle,TKO2cycle):
+                raise ValueError(f"cyle must be a TKO2cycle not a {type(cycle).__name__}")
+            isCycle = True
+            # Cycle RHS Model
+            rhs = self.get_dCdt_dynamic(cycle.T, cycle.kO2)
+        else:
+            isCycle = False
+            # Default RHS Model
+            def rhs(t, C): return self.get_dCdt(T, C)
 
         # Options (use BDF instead of LSODA if radicals are 0 at t=0)
         default_opts = dict(method=method, rtol=rtol, atol=atol,
@@ -1494,12 +1827,17 @@ class mixtureKinetics:
         # Save and return result
         result = SimpleNamespace(
             t=sol.t,
+            tunit = tunit,
+            tscale = tscale,
             y=tracked_conc,
+            concunits = "mol/m³",
             species=tracked_species,
             species_names = tracked_species,
             success=sol.success,
             message=sol.message,
-            solver=method
+            solver=method,
+            cycle=cycle,
+            isCycle=isCycle
         )
         self._results = result  # optional container
 
@@ -1511,85 +1849,174 @@ class mixtureKinetics:
         self.register_lumped("polar", self.mixture.lumped_polar_compounds())
         self.register_lumped("radicals_on_C", self.mixture.lumped_radicals_on_C())
         self.register_lumped("radicals_on_O", self.mixture.lumped_radicals_on_C())
+        self.register_lumped("Term-polymers", self.mixture.lumped_polymers())
 
         return result
 
-    def plot(self, species=None, ax=None, figsize=None, ncol=None, legend_loc="center left", bbox_to_anchor=(1.0, 0.5), **kwargs):
+    def get_interpolator(self):
+        """
+        Returns an interpolator object to estimate concentrations at arbitrary times.
+
+        Returns:
+            interp (callable): Function interp(t) that returns concentrations at time t (in seconds).
+        """
+        if self._results is None:
+            raise ValueError("No simulation results available. Run `solve()` first.")
+        return interp1d(self._results.t, self._results.y, kind='linear', axis=-1, bounds_error=False, fill_value="extrapolate")
+
+
+    def plot(self, species=None, ax=None, figsize=None, ncol=None,
+             legend_loc="center left", bbox_to_anchor=(1.0, 0.5),
+             annotate_max=True, xscale="linear", yscale="linear", **kwargs):
         """
         Plot the concentration profiles of selected species over time.
 
+        Species are rendered with custom colors if their `_color` attribute is set.
+        Lumped species (`_lumped = True`) are plotted with thicker lines and shown with a † symbol in the legend.
+        The maximum value of each curve can be labeled for clarity.
+
         Args:
-            species (list[str], optional): List of species names to plot.
-            ax (matplotlib.axes.Axes, optional): Existing axes to plot into.
-            figsize (tuple, optional): Custom figure size (default auto).
-            ncol (int, optional): Number of legend columns (default auto).
-            legend_loc (str): Legend location.
-            bbox_to_anchor (tuple): Legend position.
-            **kwargs: Passed to plot().
+            species (list[str], optional): List of species or lumped names to plot.
+                                           If None, all species and registered lumped groups are shown.
+            ax (matplotlib.axes.Axes, optional): Axes to draw on. If None, creates a new figure.
+            figsize (tuple, optional): Size of the figure.
+            ncol (int, optional): Number of columns in the legend.
+            legend_loc (str): Location of the legend.
+            bbox_to_anchor (tuple): Anchor position for the legend.
+            annotate_max (bool): Whether to annotate the curve maximum (default: True).
+            xscale (str): Scale for x-axis ('linear' or 'log'). Default: 'linear'.
+            yscale (str): Scale for y-axis ('linear' or 'log'). Default: 'linear'.
+
+        Raises:
+            RuntimeError: If no solution is available.
+            ValueError: If a species or lumped group is unrecognized.
         """
         if not hasattr(self, "_results") or self._results is None:
             raise RuntimeError("No solution available. Run `solve()` first.")
 
         sol = self._results
-        t = sol.t
+        t = sol.t * sol.tscale
         y = sol.y
 
-        # Subset to selected species, resolve lumped names
-        resolved_names = []
-        y_sel_list = []
         if species is None:
-            # Combine all individual species from the solution with all lumped keys
             selected_species = sol.species + list(self._lumped_registry.keys())
         else:
             selected_species = species
 
+        resolved_names = []
+        y_sel_list = []
+        line_styles = []
+        colors = []
+        labels = []
+
         for name in selected_species:
             if name in self._lumped_registry:
-                spnames = [sp.name for sp in self._lumped_registry[name].species]
+                lump_obj = self._lumped_registry[name]
+                spnames = [sp.name for sp in lump_obj.species]
                 try:
                     lump_indices = [sol.species.index(n) for n in spnames]
                     y_sel_list.append(y[lump_indices].sum(axis=0))
                 except ValueError as e:
                     raise ValueError(f"One or more species in lumped group '{name}' not in solution.") from e
+                resolved_names.append(name)
+                colors.append(getattr(lump_obj, "_color", None))
+                linestyle = getattr(lump_obj, "_linestyle", "-")
+                line_styles.append({'linewidth': 3.5, 'linestyle': linestyle})
+                labels.append(f"{name}")
             elif name in sol.species:
-                y_sel_list.append(y[sol.species.index(name)])
+                sp_idx = sol.species.index(name)
+                y_sel_list.append(y[sp_idx])
+                sp = next(sp for sp in self.species_list if sp.name == name)
+                resolved_names.append(name)
+                colors.append(getattr(sp, "_color", None))
+                linestyle = getattr(sp, "_linestyle", "-")
+                line_styles.append({'linewidth': 2.0, 'linestyle': linestyle})
+                labels.append(name)
             else:
                 raise ValueError(f"Unknown species or lumped group: '{name}'")
-            resolved_names.append(name)
-        y_sel = np.vstack(y_sel_list)  # shape: (n_species, len(t))
 
-        # Default figsize
-        n_species = len(resolved_names)  # after resolving regular + lumped species
+        y_sel = np.vstack(y_sel_list)
+        n_species = len(resolved_names)
+
         if figsize is None:
             base_width = 8
-            figsize = (base_width + 0.5 * n_species, 10)
+            figsize = (base_width + 0.5 * n_species, 16)
 
         if ax is None:
             fig, ax = plt.subplots(figsize=figsize)
         else:
             fig = ax.figure
 
-        for i, name in enumerate(selected_species):
-            ax.plot(t, y_sel[i], label=name, **kwargs)
+        ax.set_xscale(xscale)
+        ax.set_yscale(yscale)
 
-        ax.set_xlabel("Time [s]")
-        ax.set_ylabel("Concentration [mol/m³]")
+        # Plot curves and annotate
+        for i, name in enumerate(resolved_names):
+            plot_kwargs = {
+                "label": labels[i],
+                "color": colors[i],
+                **line_styles[i],
+                **kwargs
+            }
+            line, = ax.plot(t, y_sel[i], **plot_kwargs)
+
+        if annotate_max:
+            x1 = ax.get_xlim()[1]
+            x0 = ax.get_xlim()[0]
+            y1 = ax.get_ylim()[1]
+            y0 = ax.get_ylim()[0]
+
+            yspan = y1 - y0
+            for i, name in enumerate(resolved_names):
+                y_i = y_sel[i]
+                t_i = t
+                ymax = y_i.max()
+                ymin = y_i.min()
+                i_max = y_i.argmax()
+                if ((ymax-ymin) > (0.02 * yspan)) or yscale=="log":
+                    x = max(x0,t_i[i_max])
+                    y = max(y0,y_i[i_max])
+                    label = labels[i]
+
+                    if i_max == 0:
+                        ax.annotate(label, xy=(x, y), xytext=(x + 0.02 * t[-1], y),
+                                    textcoords='data', arrowprops=dict(arrowstyle='->', lw=0.5),
+                                    fontsize="medium", fontweight="bold", color = colors[i], ha="left", va="center")
+                    elif i_max == len(t_i) - 1:
+                        ax.annotate(label, xy=(x, y), xytext=(x - 0.02 * t[-1], y),
+                                    textcoords='data', arrowprops=dict(arrowstyle='->', lw=0.5),
+                                    fontsize="medium", fontweight="bold", color = colors[i], ha="right", va="center")
+                    else:
+                        ax.text(x, y, label, fontsize="medium", fontweight="bold", color = colors[i], ha="center", va="bottom")
+
+        ax.set_xlabel(f"Time [{sol.tunit}]", fontsize="large")
+        ax.set_ylabel(f"Concentration [{sol.concunits}]", fontsize="large")
+        ax.set_title(self.name, fontsize="large", fontweight="bold")
         ax.grid(True)
 
-        # Determine number of columns
         if ncol is None:
             ncol = math.ceil(n_species / 16)
 
-        ax.legend(
+        handles, labels = ax.get_legend_handles_labels()
+        legend = ax.legend(
+            handles,
+            labels,
             loc=legend_loc,
             bbox_to_anchor=bbox_to_anchor,
             ncol=ncol,
-            fontsize="small",
+            fontsize="medium",
             frameon=False
         )
 
-        plt.tight_layout(rect=[0, 0, 0.85, 1.0])  # leave space for legend
+        for text in legend.get_texts():
+            if text.get_text() in self._lumped_registry:
+                text.set_text(text.get_text() + " †")
+                text.set_fontweight("bold")
+
+        plt.tight_layout(rect=[0, 0, 0.85, 1.0])
         plt.show()
+
+        return fig
 
 
     def results_as_dataframe(self, species=None):
@@ -1629,10 +2056,257 @@ class mixtureKinetics:
 
         return df
 
+    def copy(self):
+        """
+        Returns a deep copy (clone) of the current mixture instance.
+
+        This method ensures that all species, reactions, and internal structures
+        are duplicated without shared references. Modifying the clone will not
+        affect the original mixture.
+
+        Returns:
+            mixture: A fully independent clone of the original mixture.
+        """
+        return copy.deepcopy(self)
+
+    @staticmethod
+    def parse_time_unit(tspan, unit='s'):
+        """
+        Convert a time span with units to seconds, return also the canonical unit and inverse scale.
+
+        Args:
+            tspan (float or tuple): time duration (e.g., 3600 or (10.0, "d"))
+            unit (str, optional): time unit if not using tuple form.
+
+        Returns:
+            time_in_seconds (float): Time span converted to seconds.
+            canonical_unit (str): Canonical form ('s', 'min', 'hours', 'days', 'weeks', 'months', 'years').
+            inverse_scale (float): Scaling factor to convert seconds back to canonical unit.
+
+        Raises:
+            ValueError: If the unit is unknown or invalid.
+
+        Canonical units and definitions:
+            - 's': seconds
+            - 'min': 60 seconds
+            - 'hours': 3600 seconds
+            - 'days': 86400 seconds
+            - 'weeks': 7 × 86400
+            - 'months': 30 × 86400
+            - 'years': 365 × 86400
+        """
+        unit_map = {
+        's': ('s', 1),'sec': ('s', 1),'second': ('s', 1),'seconds': ('s', 1),
+        'min': ('min', 60),'mn': ('min', 60),'minutes': ('min', 60),
+        'h': ('hours', 3600), 'hr': ('hours', 3600), 'hour': ('hours', 3600), 'hours': ('hours', 3600),
+        'd': ('days', 86400), 'day': ('days', 86400),'days': ('days', 86400),
+        'w': ('weeks', 7 * 86400),'week': ('weeks', 7 * 86400),'weeks': ('weeks', 7 * 86400),
+        'm': ('months', 30.44 * 86400), 'mo': ('months', 30.44 * 86400),'month': ('months', 30.44 * 86400),          'months': ('months', 30.44 * 86400),
+        'y': ('years', 365 * 86400),'yr': ('years', 365 * 86400),'year': ('years', 365 * 86400),'years': ('years', 365 * 86400),}
+        # Accept tuple format: (value, unit)
+        if isinstance(tspan, tuple):
+            if len(tspan) != 2:
+                raise ValueError("Tuple input for tspan must be (value, unit).")
+            tspan, unit = tspan
+        if unit is None:
+            raise ValueError("A time unit must be provided, either in a tuple or as a separate argument.")
+        unit = unit.lower().strip()
+        if unit not in unit_map:
+            raise ValueError(f"Unknown or unsupported time unit '{unit}'.")
+        canonical_unit, seconds_per_unit = unit_map[unit]
+        time_in_seconds = float(tspan) * seconds_per_unit
+        inverse_scale = 1.0 / seconds_per_unit
+        return time_in_seconds, canonical_unit, inverse_scale
 
 
+    def __repr__(self):
+        """repr() method"""
+        header = "[mixtureKinetics]\n"
+        species_info = f"• {self.n_species} species\n"
+        reactions_info = f"• {self.n_reactions} reactions\n"
+        sim_info = "• Simulation: "
+        if self._results:
+            sim_info += f"✓ completed (t = 0 to {self._results.t[-1]:.1f} {self._results.tunit})"
+        else:
+            sim_info += "× not run yet"
+        tracked = self._results.species if self._results else [sp.name for sp in self.species_list]
+        tracked_str = ", ".join(tracked[:6]) + ("..." if len(tracked) > 6 else "")
+        lumped_keys = list(self._lumped_registry.keys())
+        lumped_str = ", ".join(lumped_keys[:6]) + ("..." if len(lumped_keys) > 6 else "")
+        lumped_info = f"• Lumped groups: {lumped_str or 'none'}"
+        print(
+            header
+            + indent(species_info + reactions_info + sim_info + "\n", "  ")
+            + indent(f"Tracked species: {tracked_str}\n", "  ")
+            + indent(lumped_info, "  ")
+        )
+        return str(self)
 
-# %% Base Species Class
+    def __str__(self):
+        """str() method"""
+        n_species = self.n_species
+        n_reactions = self.n_reactions
+        sim_status = "available" if self._results else "not yet run"
+        return (
+            f"<mixtureKinetics with {n_species} species and {n_reactions} reactions "
+            f"— simulation {sim_status}>"
+        )
+
+    def __add__(self, other):
+        """Concatenate two mixtureKinetics simulations if compatible."""
+        if not isinstance(other, mixtureKinetics):
+            return NotImplemented
+
+        # Ensure simulations are solved
+        if self._results is None or other._results is None:
+            raise ValueError("Both mixtureKinetics instances must have completed simulations.")
+
+        # Check that species and reactions match
+        if self.n_species != other.n_species:
+            raise ValueError("Species count mismatch.")
+        if self.n_reactions != other.n_reactions:
+            raise ValueError("Reactions count mismatch.")
+
+        # Check species names in same order
+        if [sp.name for sp in self.species_list] != [sp.name for sp in other.species_list]:
+            raise ValueError("Species do not match in order or identity.")
+        if [r.fingerprint for r in self.reactions_list] != [r.fingerprint for r in other.reactions_list]:
+            raise ValueError("Reactions do not match in order or identity.")
+
+        # Extract results
+        r1, r2 = self._results, other._results
+
+        # Determine time shift (0 if already continuous)
+        dt = r1.t[-1]
+        t2_shifted = r2.t + (0.0 if np.isclose(r2.t[0], dt, atol=1e-9) else dt)
+
+        # Concatenate time and concentrations
+        t_combined = np.concatenate((r1.t, t2_shifted))
+        y_combined = np.concatenate((r1.y, r2.y), axis=1)
+
+        from types import SimpleNamespace
+        result = SimpleNamespace(
+            t=t_combined,
+            tunit=r1.tunit,
+            tscale=r1.tscale,
+            y=y_combined,
+            concunits="mol/m³",
+            species=r1.species,
+            species_names=r1.species_names,
+            success=r1.success and r2.success,
+            message=r1.message + " | " + r2.message,
+            solver=r1.solver
+        )
+
+        # Create a new instance with copied mixture and set the results
+        combined = mixtureKinetics(self.mixture.copy())  # deep copy
+        combined._results = result
+
+        # Combine lumped registry
+        for k in set(self._lumped_registry.keys()).union(other._lumped_registry.keys()):
+            reg1 = self._lumped_registry.get(k)
+            reg2 = other._lumped_registry.get(k)
+            if reg1 and reg2:
+                reg1names = [r.name for r in reg1.species]
+                reg2names = [r.name for r in reg2.species]
+                if reg1names != reg2names:
+                    raise ValueError(f"Lumped group '{k}' mismatch between instances.")
+            combined._lumped_registry[k] = reg1 or reg2
+
+        # merged names
+        combined.name = self.name + "→" + other.name
+
+        return combined
+
+
+# -----------------------------------------------------------
+# class prototype to define heating and oxygentation cycles
+# -----------------------------------------------------------
+class TKO2cycle:
+    """
+    Class to define temperature (T) and oxygenation (kO2) cycles over time.
+
+    Supports:
+        - Constant values
+        - Linear ramps between two values
+        - Multiple steps combined using +
+
+    Each cycle defines:
+        - T(t): temperature in Celsius
+        - kO2(t): oxygen mass transfer coefficient [m/s]
+
+    Example:
+        cycle = TKO2cycle.constant(60, 1e-5, duration=2*3600) + \
+                TKO2cycle.ramp(60, 80, 1e-5, 2e-5, duration=1*3600)
+    """
+
+    def __init__(self, times, T_values, kO2_values):
+        """TKO2cycle constructor (do not use it directly, call constant/ramp instead)"""
+        if isinstance(times,list):
+            for i,t in enumerate(times):
+                times[i],_,_ = mixtureKinetics.parse_time_unit(t,'s')
+        elif not isinstance(times,np.ndarray):
+            times,_,_ = mixtureKinetics.parse_time_unit(times,'s')
+        self.times = np.asarray(times)
+        self.T_values = np.asarray(T_values)
+        self.kO2_values = np.asarray(kO2_values)
+
+    @classmethod
+    def constant(cls, T, kO2, duration):
+        """generate an holding step for T and kO2"""
+        times = [0, duration]
+        T_values = [T, T]
+        kO2_values = [kO2, kO2]
+        return cls(times, T_values, kO2_values)
+
+    @classmethod
+    def ramp(cls, T, kO2, duration):
+        """generate a ramp from pair values of T and kO2"""
+        times = [0, duration]
+        if not isinstance(T,(list,tuple)) or len(T)!=2:
+            raise ValueError(f"T must be [Tstart, Tstop] or (Tstart,Tstop) not a {type(T).__name__}")
+        if not isinstance(kO2,(list,tuple)) or len(kO2)!=2:
+            raise ValueError(f"kO2 must be [kO2start, kO2stop] or (kO2start,kO2stop) not a {type(kO2).__name__}")
+        return cls(times, T, kO2)
+
+    def __add__(self, other):
+        """add a step to an existing cycle"""
+        if not isinstance(other, TKO2cycle):
+            return NotImplemented
+        t_shift = self.times[-1]
+        new_times = np.concatenate([self.times, other.times[1:] + t_shift])
+        new_T = np.concatenate([self.T_values, other.T_values[1:]])
+        new_kO2 = np.concatenate([self.kO2_values, other.kO2_values[1:]])
+        return TKO2cycle(new_times, new_T, new_kO2)
+
+    def __call__(self, t):
+        """return interpolated T and kO2 values at t"""
+        T = np.interp(t, self.times, self.T_values)
+        kO2 = np.interp(t, self.times, self.kO2_values)
+        return T, kO2
+
+    @property
+    def T(self):
+        """T(t) interpolant at t as an anonymous function"""
+        return lambda t: self(t)[0]
+
+    @property
+    def kO2(self):
+        """kO2(t) interpolation at t as an anonymous function"""
+        return lambda t: self(t)[1]
+
+    def __repr__(self):
+        segments = []
+        for i in range(len(self.times) - 1):
+            seg = f"[{self.times[i]:.0f}s → {self.times[i+1]:.0f}s]: T={self.T_values[i]}→{self.T_values[i+1]}°C, " \
+                  f"kO2={self.kO2_values[i]:.1e}→{self.kO2_values[i+1]:.1e} m/s"
+            segments.append(seg)
+        return "<TKO2cycle>\n" + "\n".join(segments)
+
+    def __str__(self):
+        return f"<TKO2cycle with {len(self.times) - 1} segments, duration {self.times[-1]} s>"
+
+# %% Base species and lumped classes
 class species:
     """
     Base class for chemical species involved in radical oxidation.
@@ -1694,6 +2368,44 @@ class species:
     _registry = {}
 
     def __init__(self, *, root=None, name='', shortname='', concentration=0.0, index=None, _alias_used=None):
+        """
+        Initialize a species object with structural, chemical, and contextual attributes.
+
+        This constructor supports flexible initialization via direct arguments or alias-based inference,
+        particularly when creating species from shorthand names (e.g., "L1OOH"). Class-level defaults
+        (`defaultName`, `defaultRoot`, `suffix`) are used as fallback when arguments are not provided.
+
+        Parameters:
+            root (str, optional): Structural identifier prefix (e.g., "L1"). Defaults to `defaultRoot`.
+            name (str, optional): Full name of the species. If empty, derived from `_alias_used` or `defaultName`.
+            shortname (str, optional): Abbreviated label for display. Defaults to `name` or `defaultName`.
+            concentration (float, optional): Initial concentration in mol/m³. Default is 0.0.
+            index (int, optional): Numerical index in the mixture or solver system.
+            _alias_used (str, internal):
+                Optional alias (e.g. "L1OOH") used to parse `root` and assign labels.
+                If set, and no explicit name is given, `name`, `shortname`, and `root`
+                will be inferred using the class's `suffix`.
+
+        Attributes:
+            name (str): Fully qualified species name.
+            shortname (str): Shorthand label for output and display.
+            root (str): Structural root used for tracking transformations.
+            concentration (float): Initial concentration.
+            index (int or None): Solver index or None if unassigned.
+            _color (str or RGB tuple or None): Color used in plots. If None, automatic coloring is applied.
+            _linestyle (str, default="-"): Linestyle used in plots.
+            _lumped (bool): Flag indicating whether this species is part of a lumped group (default: False).
+
+        Notes:
+            - If `_alias_used` matches a class suffix (e.g., "L1OOH" for suffix "OOH"), the `root` is inferred.
+            - Species can be later grouped via `lumped` objects using the `_lumped` flag.
+            - The `_color` attribute can be set at the class level (e.g., in `oxygen`) or per instance.
+
+        Example:
+            sp = monoAllylicCH(name="L1H", concentration=2.5)
+            print(sp.name, sp.root, sp.concentration)
+        """
+
         # Alias-based derivation
         if _alias_used:
             if name == '': name = _alias_used
@@ -1711,6 +2423,9 @@ class species:
         # other Parameters
         self.concentration = concentration
         self.index = index
+        self._color = getattr(self.__class__, "_color", None)
+        self._linestyle = getattr(self.__class__, "_linestyle", '-')
+        self._lumped = True
 
     def __iter__(self):
         yield from {
@@ -1950,7 +2665,7 @@ class species:
         return result
 
 
-# %% Lumped Class
+# Lumped Class
 @species.register
 class lumped(species):
     """
@@ -1962,6 +2677,11 @@ class lumped(species):
     The `lumped` object behaves like a single species whose concentration is the sum
     of its components. It inherits from the `species` base class but overrides key attributes.
 
+    Parameters:
+        species_list (list[species]): list of `species` instances being lumped.
+        color (str or [RGB] values): color to apply for plotting (default=None for automatic assignment).
+        linestyle (str, default="-"): Linestyle used in plots.
+
     Attributes:
         species (list[species]): List of `species` instances being lumped.
         name (str): Default name is "lump_" + joined individual names.
@@ -1969,6 +2689,11 @@ class lumped(species):
         concentration (float): Total concentration of included species.
         shortname (str): Default shorthand label ("LM").
         root (None): No root is assigned.
+        reactiveFunction (None): No reactive function is assigned.
+        freevalence (None): No freevalence is assigned.
+        _color: color to apply for plotting.
+        _linestyle (str, default="-"): Linestyle used in plots.
+        _lumped (True): True for lumped species.
 
     Usage Example:
         >>> LOOH1 = species.create("L1OOH", concentration=0.1)
@@ -1989,7 +2714,7 @@ class lumped(species):
         - species.__or__: Supports the `|` operator for combining species.
     """
 
-    def __init__(self, species_list):
+    def __init__(self, species_list,color=None,linestyle="-"):
         self.species = species_list
         self.name = "lump_" + "_".join(sp.name for sp in species_list)
         self.index = None
@@ -1998,6 +2723,9 @@ class lumped(species):
         self.root = None
         self.reactiveFunction = None
         self.freevalence = None
+        self._color = color
+        self._linestyle = linestyle
+        self._lumped = True
 
 
 # %% Specific Chemical Classes derived from species
@@ -2074,6 +2802,8 @@ class oxygen(species):
     interpretation = """O2 is fixed"""
     oxidationState = 0
     _redoxRank = 8
+    _color = "Red"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2095,6 +2825,8 @@ class monoAllylicCH(species):
     interpretation = """labile H abstraction"""
     oxidationState = -1
     _redoxRank = 3
+    _color = "DimGray"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2116,6 +2848,8 @@ class diAllylicCH(species):
     interpretation = """labile H abstraction"""
     oxidationState = -0.5
     _redoxRank = 2.5
+    _color = "DarkGray"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2137,6 +2871,8 @@ class triAllylicCH(species):
     interpretation = """labile H abstraction"""
     oxidationState = 0
     _redoxRank = 2
+    _color = "Silver"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2154,11 +2890,12 @@ class monoAllylicCOOH(species):
     freevalence = 0
     freevalenceHolder = None
     reactWith = [None, 'COOH']
-
     product = [{'monoAllylicCO','peroxyl'},('monoAllylicCO','monoAllylicCOO')]
     interpretation = """monomolecular or bimolecular decomposition"""
     oxidationState = -1
     _redoxRank = 6
+    _color = "DarkRed"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2180,6 +2917,8 @@ class diAllylicCOOH(species):
     interpretation = """monomolecular or bimolecular decomposition"""
     oxidationState = -1
     _redoxRank = 6
+    _color = "FireBrick"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2201,6 +2940,8 @@ class triAllylicCOOH(species):
     interpretation = """monomolecular or bimolecular decomposition"""
     oxidationState = -1
     _redoxRank = 6
+    _color = "Crimson"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2222,6 +2963,8 @@ class monoAllylicC(species):
     interpretation = """O2 addition"""
     oxidationState = 0
     _redoxRank = 4
+    _color = "DarkBlue"
+    _linestyle = ":"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2243,6 +2986,8 @@ class diAllylicC(species):
     interpretation = """O2 addition"""
     oxidationState = 0
     _redoxRank = 4
+    _color = "MediumBlue"
+    _linestyle = ":"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2264,6 +3009,8 @@ class triAllylicC(species):
     interpretation = """O2 addition"""
     oxidationState = 0
     _redoxRank = 4
+    _color = "RoyalBlue"
+    _linestyle = ":"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2285,6 +3032,8 @@ class monoAllylicCO(species):
     interpretation = """beta-scission or reduction to alcohol"""
     oxidationState = -1
     _redoxRank = 5
+    _color = "OrangeRed"
+    _linestyle = "-."
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2306,6 +3055,8 @@ class diAllylicCO(species):
     interpretation = """beta-scission or reduction to alcohol"""
     oxidationState = -1
     _redoxRank = 5
+    _color = "Tomato"
+    _linestyle = "-."
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2327,6 +3078,8 @@ class triAllylicCO(species):
     interpretation = """beta-scission or reduction to alcohol"""
     oxidationState = -1
     _redoxRank = 5
+    _color = "Coral"
+    _linestyle = "-."
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2348,6 +3101,8 @@ class monoAllylicCOO(species):
     interpretation = """H abstraction termination"""
     oxidationState = 0
     _redoxRank = 7
+    _color = "DeepPink"
+    _linestyle = "--"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2369,6 +3124,8 @@ class diAllylicCOO(species):
     interpretation = """H abstraction termination"""
     oxidationState = 0
     _redoxRank = 7
+    _color = "HotPink"
+    _linestyle = "--"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2390,6 +3147,8 @@ class triAllylicCOO(species):
     interpretation = """H abstraction termination"""
     oxidationState = 0
     _redoxRank = 7
+    _color = "LightPink"
+    _linestyle = "--"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2411,6 +3170,8 @@ class terminationPolymers(species):
     interpretation = """stable termination products (polymers)"""
     oxidationState = 0
     _redoxRank = None
+    _color = "Black"
+    _linestyle = "-"
 
 @species.register
 class monoAllylicCeqO(species):
@@ -2429,6 +3190,8 @@ class monoAllylicCeqO(species):
     interpretation = """stable ketone"""
     oxidationState = 1
     _redoxRank = 2
+    _color = "Maroon"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2450,6 +3213,8 @@ class diAllylicCeqO(species):
     interpretation = """stable ketone"""
     oxidationState = 1
     _redoxRank = 2
+    _color = "SaddleBrown"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2471,6 +3236,8 @@ class triAllylicCeqO(species):
     interpretation = """stable ketone"""
     oxidationState = 1
     _redoxRank = 2
+    _color = "Sienna"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2493,6 +3260,8 @@ class monoAllylicCHO(species):
     interpretation = """stable aldehyde"""
     oxidationState = 2
     _redoxRank = 2
+    _color = "DarkGoldenrod"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2514,6 +3283,8 @@ class diAllylicCHO(species):
     interpretation = """stable aldehyde"""
     oxidationState = 2
     _redoxRank = 2
+    _color = "Goldenrod"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2535,6 +3306,8 @@ class triAllylicCHO(species):
     interpretation = """stable aldehyde"""
     oxidationState = 2
     _redoxRank = 2
+    _color = "Gold"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2556,6 +3329,8 @@ class monoAllylicCOH(species):
     interpretation = """stable alcohol"""
     oxidationState = 0
     _redoxRank = 3
+    _color = "IndianRed"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2577,6 +3352,8 @@ class diAllylicCOH(species):
     interpretation = """stable alcohol"""
     oxidationState = 0
     _redoxRank = 3
+    _color = "Salmon"
+    _linestyle = "-"
 
 @species.register
 class triAllylicCOH(species):
@@ -2595,13 +3372,15 @@ class triAllylicCOH(species):
     interpretation = """stable alcohol"""
     oxidationState = 0
     _redoxRank = 3
+    _color = "LightSalmon"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 @species.register
 class peroxyl(species):
-    """Peroxyl radical (OH•) class"""
+    """Peroxyl radical (HO•) class"""
     classAliases = ['OH']
     className = "peroxyl radical"
     defaultName = "HO•"
@@ -2616,6 +3395,8 @@ class peroxyl(species):
     interpretation = """labile H abstraction"""
     oxidationState = 0
     _redoxRank = 7
+    _color = "DarkOrange"
+    _linestyle = "-."
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2638,6 +3419,8 @@ class H2O(species):
     interpretation = """stable water"""
     oxidationState = 0
     _redoxRank = 7
+    _color = "DeepSkyBlue"
+    _linestyle = "-"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2655,8 +3438,11 @@ class reactionRateDB:
     Each entry corresponds to a uniquely defined reaction fingerprint (e.g., "L1OOH -> L1O• + HO•")
     and may include confidence intervals, diffusion-limited behavior, and Smoluchowski model parameters.
 
+    === Attributes ===
     Class Attributes:
-        _registry (dict): Maps fingerprints to lists of registered entries.
+        _registry (dict): Maps canonical fingerprints to lists of registered entries.
+        _fingerprint_substitutions (list): List of (pattern, replacement) regex pairs
+            used to transform fingerprints queried via `.get()` or `.get_latest()`.
 
     Instance Attributes:
         fingerprint (str): Reaction descriptor in canonical form.
@@ -2677,17 +3463,38 @@ class reactionRateDB:
         etaunits (str): Units for viscosity.
         phi (float): Scaling factor used for cross-reaction inference.
 
-    Methods:
+    === Methods ===
+    Instance:
         __init__: Creates and registers a new rate constant entry.
         __iter__: Iterator over main fields.
         __str__, __repr__: Human-readable and detailed representations.
 
-    Class Methods:
-        get(fingerprint): Return all entries for a given fingerprint.
-        get_latest(fingerprint): Return the last registered entry for a fingerprint.
+    Class:
+        get(fingerprint): Return all entries matching the given fingerprint or a substituted one.
+        get_latest(fingerprint): Return the latest entry registered for a (possibly substituted) fingerprint.
         to_dataframe(): Export the full database to a pandas DataFrame.
+        register_fingerprint_substitution(pattern, replacement): Register a regex substitution to transform
+            a queried fingerprint into a canonical one, allowing lookup under different naming schemes.
 
-    Usage Example:
+    === Fingerprint Substitution ===
+    If a reaction fingerprint is not found in the registry, a set of regex-based substitutions
+    is applied in sequence to find alternative forms (e.g., "L1H" → "R1H"). This enables
+    the reuse of reaction rate constants across different naming conventions.
+
+    Example:
+        reactionRateDB.register_fingerprint_substitution(r"L([123])", r"R\\1")
+
+        # Register using R-prefixed names
+        reactionRateDB(fingerprint="R1H + R1O• -> R1• + R1OH", ...)
+
+        # Lookup via L-prefixed form will succeed:
+        reactionRateDB.get_latest("L1H + L1O• -> L1• + L1OH")
+
+    Notes:
+        - Only the first matching substitution is applied.
+        - Substitution is used only for lookup; registered fingerprints remain unchanged.
+
+    === Usage Example ===
         reactionRateDB(
             fingerprint="L1OOH -> L1O• + HO•",
             T0=140,
@@ -2696,15 +3503,11 @@ class reactionRateDB:
             source="Touffet et al. 2023"
         )
 
-    Notes:
-        - This class does not enforce uniqueness; multiple entries per fingerprint are allowed.
-        - Cross-reaction rates are computed at runtime using self-reaction entries and `reaction` logic.
-        - The class is automatically populated from structured datasets in published literature.
-
     See also:
         - reaction: Uses this class to populate kinetic parameters.
         - mixture.populateReactionRates(): Assigns values to all reactions in a mixture.
     """
+
 
     _registry = defaultdict(list)
 
@@ -2733,8 +3536,31 @@ class reactionRateDB:
         self.etaunits = etaunits
         self.phi = phi
 
-        # Register in global registry
+        # Register in global registry (class attribute)
         self.__class__._registry[fingerprint].append(self)
+        # Substitution rules (class attribute)
+        # _fingerprint_substitutions: list[tuple[re.Pattern, str]] = []
+        self.__class__._fingerprint_substitutions = []
+
+    @classmethod
+    def register_fingerprint_substitution(cls, pattern: str, replacement: str):
+        """
+        Register a regex-based substitution rule to rewrite reaction fingerprints.
+        The first rule that matches will be used.
+
+        Example:
+            pattern = r"L([123])"       # matches L1, L2, L3
+            replacement = r"R\1"        # replaces with R1, R2, R3
+        """
+        compiled = re.compile(pattern)
+        cls._fingerprint_substitutions.append((compiled, replacement))
+
+    @classmethod
+    def _apply_fingerprint_substitution(cls, fingerprint: str) -> str:
+        for pattern, repl in cls._fingerprint_substitutions:
+            if pattern.search(fingerprint):
+                return pattern.sub(repl, fingerprint)
+        return fingerprint  # no substitution applied
 
     def __iter__(self):
         yield from {
@@ -2769,13 +3595,16 @@ class reactionRateDB:
 
     @classmethod
     def get(cls, fingerprint):
-        """Returns all entries matching the fingerprint."""
-        return cls._registry.get(fingerprint, [])
+        """Returns all entries matching the fingerprint or its substituted variant."""
+        actual = fingerprint
+        if fingerprint not in cls._registry:
+            actual = cls._apply_fingerprint_substitution(fingerprint)
+        return cls._registry.get(actual, [])
 
     @classmethod
     def get_latest(cls, fingerprint):
-        """Returns the last entry added for a given fingerprint."""
-        entries = cls._registry.get(fingerprint, [])
+        """Returns the last entry added for a fingerprint (with substitution if needed)."""
+        entries = cls.get(fingerprint)
         return entries[-1] if entries else None
 
     @classmethod

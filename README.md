@@ -1,59 +1,70 @@
-# Radigen
+# Radigen 🧪⚛️
 
-**Radigen** is a Python-based kernel for simulating radical oxidation mechanisms in complex organic mixtures, including **edible oils**, **biofuels**, and **polymer materials**.
+**Radigen** is a compact Python kernel for simulating radical oxidation mechanisms in complex mixtures such as **edible oils**, **biofuels**, and **polymers**. It supports the **generative construction**, **parameterization**, and **numerical resolution** of complex chemical reaction networks, with full support for **dynamic thermal and oxygenation conditions**.
 
-It supports the **generative construction**, **parameterization**, and **numerical resolution** of complex reaction networks involving reactive functions, radicals, and temperature/transport effects. This kernel is also the basis for **LLM integration** in the **Generative Simulation Initiative**.
-
-------
-
-## 🔬 Scientific Foundation
-
-Radigen builds on two mechanistic modeling frameworks published in peer-reviewed journals:
-
-1. **Touffet M., Smith P., Vitrac O.**
-    *A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures*,
-    *Food Research International*, 173(1), 2023, 113289.
-    https://doi.org/10.1016/j.foodres.2023.113289
-2. **Touffet M., Vitrac O.**
-    *Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms*,
-    *Food Chemistry*, 481, 2025, 143952.
-    https://doi.org/10.1016/j.foodchem.2025.143952
+>  Radigen is part of the **Generative Simulation Initiative**, and is designed for **prompt-based modeling and LLM-driven scientific reasoning**.
 
 ------
 
-## 🧠 Core Capabilities
+## 📚🔬 1 | Scientific Foundation
 
-- ✅ **Declarative species and reaction construction**
-- ✅ **Combinatorial generation** of mono- and bimolecular reactions with canonical ordering
-- ✅ **Cross-reaction inheritance** and parameter inference from self-reactions
-- ✅ **Rate constant assignment** (`k₀`, `Eₐ`) from a structured database (`reactionRateDB`)
-- ✅ **Temperature and viscosity effects** via Arrhenius + Smoluchowski models
-- ✅ **Equilibrium modeling** for cage vs. free hydroperoxide decomposition
-- ✅ **O₂ transport coupling** via Henry's law and first-order exchange kinetics
-- ✅ **Sparse/dense stoichiometric matrix generation**
-- ✅ **Time-resolved ODE integration** (based on `scipy.integrate.solve_ivp`)
-- ✅ **Plotting and DataFrame export** for concentration profiles
-- ✅ **Construction of lumped species** based on chemical structures for rapid interpretation and reporting
+Radigen is based on two peer-reviewed frameworks for oxidation kinetics in unsaturated systems:
 
-------
-
-## 🤖 LLM Integration
-
-Radigen is designed as a kernel for **LLM-driven chemistry**. Its architecture supports:
-
-- Modular inspection and manipulation of species and reactions
-- Natural language mapping to chemical entities (`C1H`, `L1OOH`, etc.)
-- Symbolic access to mechanisms, rate equations, and observables
-- Prompt-based generation of mixtures, mechanisms, and simulations
-
-This kernel supports ongoing developments in generative scientific simulation and **LLM fine-tuning on physical–chemical representations**.
+1. **Touffet M., Smith P., Vitrac O.**,
+   *A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures*,
+   *Food Research International*, 173, 2023, 113289.
+   https://doi.org/10.1016/j.foodres.2023.113289
+2. **Touffet M., Vitrac O.**,
+   *Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms*,
+   *Food Chemistry*, 481, 2025, 143952.
+   https://doi.org/10.1016/j.foodchem.2025.143952
 
 ------
 
-## 🧪 Quick Start
+
+
+## 🧠🛠️ 2 | Core Capabilities
+
+- ✅ Declarative **species and reaction network construction**
+- ✅ **Combinatorial generation** of mono/bimolecular reactions
+- ✅ **Cross-reaction inference** from self-reactions
+- ✅ **Rate constant assignment** from structured fingerprint database
+- ✅ **Temperature + viscosity effects** (Arrhenius & Smoluchowski)
+- ✅ **Cage ↔ free** hydroperoxide decomposition equilibrium
+- ✅ **O₂ transport** coupling via Henry's law and exchange kinetics
+- ✅ Dynamic **temperature & kO₂ cycles** with `TKO2cycle`
+- ✅ **Chained simulations**, physical mixing of partially oxidized systems
+- ✅ High-level **plotting**, **DataFrame output**, and **lumped species**
+- ✅ Built-in support for **LLM prompts**, aiding scientific simulation
+
+------
+
+
+
+## 🤖🧠 3 | LLM Integration
+
+Radigen was designed for **prompt-based simulation** and **LLM-assisted reasoning**. Its modular architecture allows:
+
+- Easy mapping from LLM prompt to chemical simulations
+- Access to symbolic names (e.g., `L1OOH`, `L2•`) and grouped observables
+- High-quality examples showcasing realistic oxidation scenarios
+- Support for mixing, renewal, dynamic profiles, and chemical interrogation
+
+> 💡 **Example Prompts**:
+>
+> - “*Simulate oxidation of linolenic acid at 180°C with oxygen limitation*.”
+> - “*What happens when abused oil is mixed with fresh oil?*”
+> - “*Generate a kinetic profile under cooling from 160°C to 40°C.*”
+>
+> ------
+>
+
+
+
+## 🚀📦 4 | Quick Start
 
 ```python
-from radigen3.oxidation import mixture
+from radigen3.oxidation import mixture, mixtureKinetics
 
 oil = mixture()
 oil.add("L1H", concentration=3000)
@@ -65,15 +76,37 @@ oil.addReactions()
 oil.populateReactionRates()
 
 oilmodel = mixtureKinetics(oil)
-oilmodel.solve(3600*24*10, T=60)  # 10 days at 60°C
-oilmodel.plot()
-df = oilmodel.results_as_dataframe(["L1H", "L1OOH", "L1O•"])
-print(df.head())
+oilmodel.solve((10, "days"), T=60)
+oilmodel.plot(["L1H", "L1OOH", "O2"])
 ```
 
 ------
 
-```python
+
+
+## ⚗️ 5 | Example Scenarios
+
+Radigen includes worked-out examples such as `simulate_oil.py` and `test_oxidation.py`, including:
+
+- **Scenario 1**: Oxidation at 140°C for 1 hour
+- **Scenario 2**: Long-term oxidation at 80°C for 100 hours
+- **Scenario 3**: Dynamic cycle (180°C → 40°C over days)
+- **Scenario 4**: Partial renewal (abused + pristine oil, then storage)
+- **Unit tests**: Oxidation under **anoxia** and with **oxygen excess**
+
+🖼️ Each simulation includes ready-to-use `plot()` methods, with export support via `fig.print(filename, folder)`.
+
+------
+
+
+
+## ♾️⚗️ 6 | Combinatorial Radical Chemistry
+
+### Overview
+
+Radigen generates all reactions and paramaterized them according to combinatorial rules. The following  script spans a reaction scheme involving **27 species** and **60 reactions**.
+
+```
 oil = mixture()
 oil.add("L1H",concentration=3000)
 oil.add("L2H",concentration=1000)
@@ -83,9 +116,10 @@ oil.add("O2",concentration=10)
 oil.addProducts()
 oil.addReactions()
 oil.populateReactionRates()
+print("Considered reaction Scheme", "-"*30, oil.reactionScheme, sep="\n")
 
 oilmodel = mixtureKinetics(oil) # kinetic model
-oilmodel.solve(10*24*3600,60)
+oilmodel.solve((10,"days"),60)
 oilmodel.plot()
 df = oilmodel.results_as_dataframe(["L1H","L2H","L3H","L1OOH","L2OOH","L3OOH"])
 print(df)
@@ -94,7 +128,8 @@ print(df)
 <details>
 	<summary>Click here to see results</summary>
 
-⏱ 59 reactions involving 27 species were generated, including:
+
+⏱ **60 reactions** involving **27 species** were generated, including:
 
 ```
  *R0: L1H + HO• → L1• + H2O,
@@ -158,136 +193,226 @@ print(df)
  *R58: L2O• → L2=O,
  *R59: L3O• → L3=O
 ```
+
 *A star indicates that the reaction has been correctly parameterized*.
 </details>
 
+
+
+## ✚⚗️ 7 | Extending Radical Chemistry
+
+Radigen **automatically generates all chemically valid reactions** by combining species according to their **reactive functions**, including hydrogen abstraction, radical recombination, and hydroperoxide decomposition. Each species class defines:
+
+* Its **reactive function** (e.g., `"CH"` for allylic hydrogen)
+* Which **functions it reacts with** (e.g., `"HO•"`, `"COO•"`)
+* The **product class** to form (e.g., `monoAllylicC`)
+* A **default name and root**, which are used to infer product names
+* An **optional color and linestyle** for visualization
+
+
+
+### 🧬 7.1 | Example: Hydrogen Abstraction from Oleic Acid (L1H)
+
+The species `L1H` is defined using a class that encodes its reactivity:
+
+```python
+@species.register
+class monoAllylicCH(species):
+    """Aliphatic (CH) on monoallylic site"""
+    classAliases = ['C1H', 'R1H', 'L1H', 'P1H']
+    defaultName = "L1H"
+    defaultRoot = "L1"
+    suffix = "H"
+    allylic = 1
+    reactiveFunction = "CH"
+    reactWith = ['HO•', 'CO•', 'COO•']
+    product = ['monoAllylicC']
+```
+
+This declares that:
+
+* `L1H` can lose a hydrogen (H abstraction)
+
+* It reacts with radicals such as `HO•`, `COO•`, etc.
+
+* The product is a `monoAllylicC` radical (usually named `L1•`)
+
+  
+
+### 🔢 7.2 | Reaction Generation
+
+When you run:
+
+```python
+oil.addProducts()
+oil.addReactions()
+```
+
+Radigen:
+
+1. Constructs new species like `L1•` and `L1OH` using registered rules.
+2. Creates all valid reactions like:
+
+```text
+L1H + L1O• → L1• + L1OH
+L1H + HO• → L1• + H2O
+```
+
+3. Assigns reaction rate constants by matching **reaction fingerprints**.
+
+
+
+### 🧾 7.3 | Rate Constant Assignment
+
+Reaction rates are assigned from a curated database (`reactionRateDB`) using string-based **fingerprints** such as:
+
+```python
+reactionRateDB(
+    fingerprint="L1H + L1O• -> L1• + L1OH",
+    T0=30,  # reference temperature (°C)
+    k0=3.80e3,  # rate constant at T0 [m³·mol⁻¹·s⁻¹]
+    Ea=14.0e3,  # activation energy [J/mol]
+    source="Touffet et al. 2023, Table 2"
+)
+```
+
+* Fingerprints use canonical formatting and names.
+* Each fingerprint may be associated with multiple entries (e.g., confidence intervals, sources).
+* Cross-reactions inherit rate constants via **geometric mean rules** (from collision theory).
+
+
+
+### 🔄 7.4 | Fingerprint Substitution
+
+Radigen supports **symbolic substitution** to simplify fingerprint management. For instance:
+
+```python
+reactionRateDB.register_fingerprint_substitution(r"C([123])", r"L\1")
+```
+
+This maps `"C1H"` → `"L1H"`, allowing fingerprints like:
+
+```text
+C1H + C1O• → C1• + C1OH
+```
+
+to reuse existing data for `L1H` reactions.
+
+
 ------
 
-## 📘 Feature Progress
 
-| Feature                                                      | Status             |
-| ------------------------------------------------------------ | ------------------ |
-| Reaction fingerprinting + registry lookup                    | ✅ done             |
-| Monomolecular & bimolecular pathway logic                    | ✅ done             |
-| Cross-reaction inheritance                                   | ✅ done             |
-| Transport coupling (O₂ interface kinetics)                   | ✅ done             |
-| Cage ↔ free hydroperoxide equilibrium                        | ✅ done             |
-| Time-resolved simulation (solve_ivp)                         | ✅ done             |
-| Diffusion-limited reaction modeling                          | ✅ done             |
-| Data export (DataFrame, plotting)                            | ✅ done             |
-| Creation of arbitrary “lumped” species from initial conditions and simulated results | ✅ done             |
-| GUI or LLM prompt wrappers                                   | 🚧 work in progress |
 
-------
-
-## 📂 Project Structure
+## 📦📁 8 | Project Structure
 
 ```
 radigen/
 ├── radigen3/
-│   ├── oxidation.py         # main kernel
+│   ├── oxidation.py         # main kernel (>4 Klines)
 │   └── ...
-├── examples/
-│   └── simulate_oil.py      # full oxidation scenario
-├── tests/
-│   └── test_oxidation.py    # unit tests
+├── simulate_oil.py          # main simulation scenarios
+├── test_oxidation.py        # validation and baseline examples
 ├── README.md
+├── images/				   # printed figures as PNG and PDF images
+├── docs/				   # code documentation
+└── literature/              # manuscripts and constant tables
 ```
 
 ------
 
 
-## 🧩 Overview of Core Classes
-| Class             | Purpose                                                                 | Key Features                                                                                    |
-| ----------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `species`         | Represents a chemical species, radical or non-radical                   | Tracks identity, concentration, radical status, reactive functions, origin and products         |
-| `reaction`        | Encodes a single chemical reaction with stoichiometry and type          | Handles bimolecular/monomolecular logic, canonical fingerprinting, and directionality           |
-| `reactionRateDB`  | Stores and queries rate constants (`k₀`, `Eₐ`) for known reaction types | Supports fingerprint lookups, priority ranks, redox heuristics, and confidence tagging          |
-| `mixture`         | Container for species and reactions in a chemical system                | Builds product and reaction networks automatically from a few initial species                   |
-| `mixtureKinetics` | Numerical kinetic solver based on a `mixture` instance                  | Integrates ODEs, applies temperature & diffusion corrections, and returns time-resolved results |
-| `lumped`          | Groups multiple species under a shared name or tag (e.g., LOOH)         | Supports species aliases, output simplification, and aggregate quantification                   |
+
+## 🔧 9 | Installation
+
+Radigen is a **self-contained kernel** distributed as a single module file:  `radigen3/oxidation.py` (∼4,000+ lines of fully documented code).
+
+No `pip install` is required.
+
+### 📁 Recommended Project Layout
+
+Place your scripts in a folder alongside `radigen3/`:
+
+```
+radigen/
+├── radigen3/
+│   └── oxidation.py      # main module (kernel)
+├── yourscript.py         # your example or project scripts
+...
+└── README.md
+```
+
+This allows **direct usage** of all core classes without installation:
+
+```python
+from radigen3.oxidation import mixture, mixtureKinetics, TKO2cycle
+```
+
+This strategy:
+
+- Enables **version isolation** and multiple coexisting Radigen versions.
+- Avoids `sys.path` manipulation or environment modification.
+- Is ideal for **prompt-driven** or **LLM-assisted scripting** workflows.
+
+> 🚩If you use notebooks (e.g., `Jupyter`), just ensure the notebook is run from the folder containing `radigen3/`.
 
 ------
 
-## 📦 Lumped Species
 
-Radigen supports the **automatic grouping of chemically related species** into *lumped species*, allowing users to visualize and extract **aggregate concentrations**. These are especially useful for:
 
-- Hydroperoxides (e.g., `L1OOH`, `L2OOH`, `L3OOH`)
-- Aldehydes, ketones, alcohols
-- Radicals centered on carbon or oxygen
-- Any class of polar compounds (with at least one `O` atom)
+## 🧩📘 10 | Core Classes
 
-<details>
-	<summary>Click here to expand</summary>
+| Class             | Purpose                                                      |
+| ----------------- | ------------------------------------------------------------ |
+| `species`         | Represents chemical species (radicals, peroxides, stable)    |
+| `reaction`        | Canonical reaction with fingerprint and type inference       |
+| `reactionRateDB`  | Registry of rate constants (k₀, Eₐ) searchable by fingerprint |
+| `mixture`         | Encodes physical/chemical system: species, V, A, T, kO₂, pO₂ |
+| `mixtureKinetics` | Numerical integrator for the chemical system (solve_ivp)     |
+| `lumped`          | Group of species for aggregate observables                   |
+| `TKO2cycle`       | Dynamic temperature and kO₂ definition for advanced scenarios |
 
-This feature relies on two mechanisms:
+------
 
-### 1 | **Auto-Grouping from `mixture`**
+## 🧺🧫 11 | Lumped Species
+
+Radigen offers built-in **grouping functions** to track hydroperoxides, aldehydes, ketones, radicals and polymers:
 
 ```python
-# Get a lumped object containing all hydroperoxides
-rooh = oil.lumped_hydroperoxides()
-
-# Similarly for aldehydes, radicals, etc.
-radC = oil.lumped_radicals_on_C()
-polar = oil.lumped_polar_compounds()
+oilmodel.register_lumped("LOOH", oil.lumped_hydroperoxides())
+oilmodel.register_lumped("rad_C", oil.lumped_radicals_on_C())
+df = oilmodel.results_as_dataframe(["L1H", "LOOH", "rad_C"])
 ```
 
-Each method returns a `lumped` object with a `.name` and `.species` list. These objects can be passed to `mixtureKinetics`.
-
-### 2 | **Registration in Kinetics Model**
-
-You can register lumped species to be **plotted or exported as if they were real species**:
+Custom groups by pattern or reactive function:
 
 ```python
-oilmodel = mixtureKinetics(oil)
-oilmodel.register_lumped("LOOH", rooh)           # name can be arbitrary
-oilmodel.register_lumped("radicals_C", radC)
-
-oilmodel.solve(10*24*3600, T=60)
-oilmodel.plot()                                  # includes lumped if species=None
-df = oilmodel.results_as_dataframe()             # same: lumped automatically appended
-```
-
-If you only want to include specific lumped species:
-
-```python
-oilmodel.plot(["L1H", "LOOH", "radicals_C"])
-df = oilmodel.results_as_dataframe(["L1H", "LOOH", "radicals_C"])
-```
-
-### 🔧 Custom Grouping by Function or Pattern
-
-Advanced users can create lumped species on the fly:
-
-```python
-# Group all with reactive function == 'COOH'
-l1 = oil.get_lumped_by_function("COOH")
-
-# Group all species whose name matches a regex
 peroxyls = oil.get_lumped_by_pattern(r".*OO•$")
+cooh_group = oil.get_lumped_by_function("COOH")
 ```
 
-These groups can be registered and used identically to individual species.
+------
 
-</details>
+## 🧬 12 | Chemistry Assumptions
+
+- Allylicity matters: `L1H`, `L2H`, `L3H` represent mono-, di-, and triallylic protons.
+- Glycerol backbone is ignored; triglycerides are **approximated by FAMEs**.
+- O₂ transport modeled via gas-liquid interface (Henry's law + `kO2`)
+- Thermodynamic equilibrium (stability of H-bonds) governs **ROOH cage vs. free** mechanism.
 
 ------
+
+
 
 ## 📜 License
 
-MIT License – see [`LICENSE`](https://chatgpt.com/c/LICENSE) file.
+MIT License – see `LICENSE`.
 
 ------
 
-## 🧠 Credits
+## 📣 Contact
 
-Developed by the **Generative Simulation Initiative**
- Lead: Olivier Vitrac
+Developed under the **Generative Simulation Initiative**
+ Lead: **Olivier Vitrac**
  Contact: *[olivier.vitrac@gmail.com](mailto:olivier.vitrac@gmail.com)*
 
-------
-
-*Last updated: 2025-05-09*
-
+*Last updated: 2025-05-11
