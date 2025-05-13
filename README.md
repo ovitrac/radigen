@@ -311,7 +311,7 @@ radigen/
 │   ├── oxidation.py         # main kernel (>4 Klines)
 │   └── ...
 ├── simulate_oil.py          # main simulation scenarios
-├── test_oxidation.py        # validation and baseline examples
+├── test_oxidation.py		# validation and baseline examples
 ├── README.md
 ├── images/				   # printed figures as PNG and PDF images
 ├── docs/				   # code documentation
