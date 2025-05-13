@@ -31,7 +31,7 @@ Radigen is based on two peer-reviewed frameworks for oxidation kinetics in unsat
 - ✅ **Rate constant assignment** from structured fingerprint database
 - ✅ **Temperature + viscosity effects** (Arrhenius & Smoluchowski)
 - ✅ **Cage ↔ free** hydroperoxide decomposition equilibrium
-- ✅ **O₂ transport** coupling via Henry's law and exchange kinetics
+- ✅ **O₂ transport** coupling via Henry's law and dissolution kinetics
 - ✅ Dynamic **temperature & kO₂ cycles** with `TKO2cycle`
 - ✅ **Chained simulations**, physical mixing of partially oxidized systems
 - ✅ High-level **plotting**, **DataFrame output**, and **lumped species**
