@@ -46,8 +46,13 @@ Key References:
 
 
 Author: Olivier Vitrac — olivier.vitrac@gmail.com
-Revision: 2025-05-11
+Revision: 2025-05-13
 """
+
+# Revision history
+# 2025-05-11 production release (v0.51)
+# 2025-05-13 add reaction.ispolymerization (True if C-polymer, D-polymer)
+#            Stoichiometry increment (+0.5 instead of 1) (v0.512)
 
 # %% Indentication
 __project__ = "SFPPy"
@@ -57,7 +62,7 @@ __credits__ = ["Olivier Vitrac"]
 __license__ = "MIT"
 __maintainer__ = "Olivier Vitrac"
 __email__ = "olivier.vitrac@gmail.com"
-__version__ = "0.51"
+__version__ = "0.512"
 
 
 # %% Dependencies
@@ -384,6 +389,14 @@ class reaction:
     def iscagedecompositionROOH(self):
         """Returns True if the reaction involves a bimolecular cage decomposition of hydroperoxides"""
         return self.isbimolecular and self.isdecompositionROOH
+
+    @property
+    def ispolymerization(self):
+        """Returns True if the reaction involves a polymerization"""
+        if self.ismonomolecular:
+            return False
+        else:
+            return self.C.reactiveFunction == "-polymer" and self.D.reactiveFunction == "-polymer"
 
     def kArrhenius(self,T=None):
         """Returns the Arrhenian reaction rate"""
@@ -1263,8 +1276,8 @@ class mixture:
         Rows: species (ordered by .index)
         Columns: reactions (ordered by .index)
 
-        Reactants A,B → -1
-        Products C,D → +1
+        Reactants A,B → -1 (increment, bimolecular → -2 with A=B)
+        Products C,D → +1 (increment, except if polymerization → +0.5)
 
         Args:
             sparse (bool): If True, returns a scipy.sparse CSR matrix.
@@ -1289,9 +1302,10 @@ class mixture:
             for sp in [rxn.A, rxn.B]:
                 if sp is not None:
                     S[sp.index, j] -= 1
+            ispolymerization = rxn.ispolymerization
             for sp in [rxn.C, rxn.D]:
                 if sp is not None:
-                    S[sp.index, j] += 1
+                    S[sp.index, j] += 0.5 if ispolymerization else 1
 
         if sparse:
             S = S.tocsr()
