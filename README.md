@@ -395,7 +395,7 @@ cooh_group = oil.get_lumped_by_function("COOH")
 ## 🧬 12 | Chemistry Assumptions
 
 - Allylicity matters: `L1H`, `L2H`, `L3H` represent mono-, di-, and triallylic protons.
-- Glycerol backbone is ignored; triglycerides are **approximated by FAMEs**.
+- Glycerol backbone is ignored; triglycerides are **approximated by FAMEs** (fatty methyl esters).
 - O₂ transport modeled via gas-liquid interface (Henry's law + `kO2`)
 - Thermodynamic equilibrium (stability of H-bonds) governs **ROOH cage vs. free** mechanism.
 
@@ -415,4 +415,4 @@ Developed under the **Generative Simulation Initiative**
  Lead: **Olivier Vitrac**
  Contact: *[olivier.vitrac@gmail.com](mailto:olivier.vitrac@gmail.com)*
 
-*Last updated: 2025-05-11
+*Last updated: 2025-05-13
