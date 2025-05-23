@@ -398,6 +398,8 @@ This strategy:
 
 ## 🧩📘 10 | Core Classes
 
+**Module** `radigen3.oxidation`
+
 | Class             | Purpose                                                      |
 | ----------------- | ------------------------------------------------------------ |
 | `species`         | Represents chemical species (radicals, peroxides, stable)    |
@@ -408,7 +410,89 @@ This strategy:
 | `lumped`          | Group of species for aggregate observables                   |
 | `TKO2cycle`       | Dynamic temperature and kO₂ definition for advanced scenarios |
 
+**Class Inheritance Diagram** 
+
+```mermaid
+graph TD;
+H2O
+PrintableFigure
+TKO2cycle
+diAllylicC
+diAllylicCH
+diAllylicCHO
+diAllylicCO
+diAllylicCOH
+diAllylicCOO
+diAllylicCOOH
+diAllylicCeqO
+lumped
+mixture
+mixtureKinetics
+monoAllylicC
+monoAllylicCH
+monoAllylicCHO
+monoAllylicCO
+monoAllylicCOH
+monoAllylicCOO
+monoAllylicCOOH
+monoAllylicCeqO
+oxygen
+peroxyl
+reaction
+reactionRateDB
+species
+terminationPolymers
+triAllylicC
+triAllylicCH
+triAllylicCHO
+triAllylicCO
+triAllylicCOH
+triAllylicCOO
+triAllylicCOOH
+triAllylicCeqO
+Figure --> PrintableFigure
+object --> TKO2cycle
+object --> mixture
+object --> mixtureKinetics
+object --> reaction
+object --> reactionRateDB
+object --> species
+species --> H2O
+species --> diAllylicC
+species --> diAllylicCH
+species --> diAllylicCHO
+species --> diAllylicCO
+species --> diAllylicCOH
+species --> diAllylicCOO
+species --> diAllylicCOOH
+species --> diAllylicCeqO
+species --> lumped
+species --> monoAllylicC
+species --> monoAllylicCH
+species --> monoAllylicCHO
+species --> monoAllylicCO
+species --> monoAllylicCOH
+species --> monoAllylicCOO
+species --> monoAllylicCOOH
+species --> monoAllylicCeqO
+species --> oxygen
+species --> peroxyl
+species --> terminationPolymers
+species --> triAllylicC
+species --> triAllylicCH
+species --> triAllylicCHO
+species --> triAllylicCO
+species --> triAllylicCOH
+species --> triAllylicCOO
+species --> triAllylicCOOH
+species --> triAllylicCeqO
+```
+
+
+
 ------
+
+
 
 ## 🧺🧫 11 | Lumped Species
 
