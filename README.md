@@ -410,7 +410,31 @@ This strategy:
 | `lumped`          | Group of species for aggregate observables                   |
 | `TKO2cycle`       | Dynamic temperature and kO₂ definition for advanced scenarios |
 
-**Class Inheritance Diagram** 
+**Class Inheritance Diagram** (without species-derived classes)
+
+```mermaid
+graph TD;
+PrintableFigure
+TKO2cycle
+lumped
+mixture
+mixtureKinetics
+reaction
+reactionRateDB
+species
+Figure --> PrintableFigure
+object --> TKO2cycle
+object --> mixture
+object --> mixtureKinetics
+object --> reaction
+object --> reactionRateDB
+object --> species
+species --> lumped
+```
+
+
+
+**Class Inheritance Diagram** (with species-derived classes)
 
 ```mermaid
 graph TD;
