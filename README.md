@@ -8,7 +8,7 @@
 
 ![Radigen Illustration](docs/assets/radigen_banner.png)
 
-<small>Credits: Olivier Vitrac</small>
+<small>🎨 Credits: Olivier Vitrac</small>
 
 
 ------
@@ -556,7 +556,7 @@ MIT License – see `LICENSE`.
 
 ## 📣 Contact
 
-Developed under the **Generative Simulation Initiative**
+Developed under the **Generative Simulation Initiative** 🌱
  Lead: **Olivier Vitrac**
  Contact: *[olivier.vitrac@gmail.com](mailto:olivier.vitrac@gmail.com)*
 
