@@ -4,7 +4,44 @@
 
 >  Radigen is part of the **Generative Simulation Initiative**, and is designed for **prompt-based modeling and LLM-driven scientific reasoning**.
 
+
+
+![Radigen Illustration](docs/assets/radigen_banner.png)
+
+<small>Credits: Olivier Vitrac</small>
+
+
 ------
+
+
+
+## 📚 Table of Contents
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [📚🔬 1 | Scientific Foundation](#-1--scientific-foundation)
+- [🧠🛠️ 2 | Core Capabilities](#-2--core-capabilities)
+- [🤖🧠 3 | LLM Integration](#-3--llm-integration)
+- [🚀📦 4 | Quick Start](#-4--quick-start)
+- [⚗️ 5 | Example Scenarios](#-5--example-scenarios)
+- [♾️⚗️ 6 | Combinatorial Radical Chemistry](#-6--combinatorial-radical-chemistry)
+- [✚⚗️ 7 | Extending Radical Chemistry](#%E2%9C%9A-7--extending-radical-chemistry)
+- [📦📁 8 | Project Structure](#-8--project-structure)
+- [🔧 9 | Installation](#-9--installation)
+- [🧩📘 10 | Core Classes](#-10--core-classes)
+- [🧺🧫 11 | Lumped Species](#-11--lumped-species)
+- [🧬 12 | Chemistry Assumptions](#-12--chemistry-assumptions)
+- [📜 License](#-license)
+- [📣 Contact](#-contact)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+
+
+------
+
+
 
 ## 📚🔬 1 | Scientific Foundation
 
@@ -415,4 +452,4 @@ Developed under the **Generative Simulation Initiative**
  Lead: **Olivier Vitrac**
  Contact: *[olivier.vitrac@gmail.com](mailto:olivier.vitrac@gmail.com)*
 
-*Last updated: 2025-05-13
+*Last updated: 2025-05-23*

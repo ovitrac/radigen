@@ -55,7 +55,7 @@ Revision: 2025-05-13
 #            Stoichiometry increment (+0.5 instead of 1) (v0.512)
 
 # %% Indentication
-__project__ = "SFPPy"
+__project__ = "Radigen"
 __author__ = "Olivier Vitrac"
 __copyright__ = "Copyright 2025"
 __credits__ = ["Olivier Vitrac"]
