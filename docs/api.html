@@ -740,14 +740,23 @@ language. The full system is composable, traceable, and extensible.</p>
 </dd>
 </dl>
 <p>### 🧩 Overview of Core Classes
-| Class             | Purpose                                                                 | Key Features                                                                                    |
-| —————– | ———————————————————————– | ———————————————————————————————– |
-| <cite>species</cite>         | Represents a chemical species, radical or non-radical                   | Tracks identity, concentration, radical status, reactive functions, origin and products         |
-| <cite>reaction</cite>        | Encodes a single chemical reaction with stoichiometry and type          | Handles bimolecular/monomolecular logic, canonical fingerprinting, and directionality           |
-| <cite>reactionRateDB</cite>  | Stores and queries rate constants (<cite>k₀</cite>, <cite>Eₐ</cite>) for known reaction types | Supports fingerprint lookups, priority ranks, redox heuristics, and confidence tagging          |
-| <cite>mixture</cite>         | Container for species and reactions in a chemical system                | Builds product and reaction networks automatically from a few initial species                   |
-| <cite>mixtureKinetics</cite> | Numerical kinetic solver based on a <cite>mixture</cite> instance                  | Integrates ODEs, applies temperature &amp; diffusion corrections, and returns time-resolved results |
-| <cite>lumped</cite>          | Groups multiple species under a shared name or tag (e.g., LOOH)         | Supports species aliases, output simplification, and aggregate quantification                   |</p>
++———————+—————————————————————+
+| Class               | Purpose                                                       |
++=====================+===============================================================+
+| <cite>species</cite>           | Represents chemical species (radicals, peroxides, stable)     |
++———————+—————————————————————+
+| <cite>reaction</cite>          | Canonical reaction with fingerprint and type inference        |
++———————+—————————————————————+
+| <cite>reactionRateDB</cite>    | Registry of rate constants (k₀, Eₐ) searchable by fingerprint  |
++———————+—————————————————————+
+| <cite>mixture</cite>           | Encodes physical/chemical system: species, V, A, T, kO₂, pO₂  |
++———————+—————————————————————+
+| <cite>mixtureKinetics</cite>   | Numerical integrator for the chemical system (<cite>solve_ivp</cite>)    |
++———————+—————————————————————+
+| <cite>lumped</cite>            | Group of species for aggregate observables                    |
++———————+—————————————————————+
+| <cite>TKO2cycle</cite>         | Dynamic temperature and kO₂ definition for advanced scenarios |
++———————+—————————————————————+</p>
 <p>Author: Olivier Vitrac — <a class="reference external" href="mailto:olivier&#46;vitrac&#37;&#52;&#48;gmail&#46;com">olivier<span>&#46;</span>vitrac<span>&#64;</span>gmail<span>&#46;</span>com</a>
 Revision: 2025-05-13</p>
 <dl class="py class">
