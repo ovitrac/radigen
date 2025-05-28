@@ -1,0 +1,645 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radigen 🧪⚛️ &mdash; Radigen🧪⚛️ 0.512 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=019dc14b"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api.html" />
+    <link rel="prev" title="Welcome to sig2dna_core’s documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Radigen🧪⚛️
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Radigen 🧪⚛️</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#table-of-contents">📚 Table of Contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#scientific-foundation">📚🔬 1 | Scientific Foundation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-capabilities">🧠🛠️ 2 | Core Capabilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#llm-integration">🤖🧠 3 | LLM Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">🚀📦 4 | Quick Start</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-scenarios">⚗️ 5 | Example Scenarios</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#combinatorial-radical-chemistry">♾️⚗️ 6 | Combinatorial Radical Chemistry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#extending-radical-chemistry">✚⚗️ 7 | Extending Radical Chemistry</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#example-hydrogen-abstraction-from-oleic-acid-l1h">🧬 7.1 | Example: Hydrogen Abstraction from Oleic Acid (L1H)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reaction-generation">🔢 7.2 | Reaction Generation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rate-constant-assignment">🧾 7.3 | Rate Constant Assignment</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fingerprint-substitution">🔄 7.4 | Fingerprint Substitution</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#project-structure">📦📁 8 | Project Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">🔧 9 | Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#recommended-project-layout">📁 Recommended Project Layout</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#core-classes">🧩📘 10 | Core Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lumped-species">🧺🧫 11 | Lumped Species</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chemistry-assumptions">🧬 12 | Chemistry Assumptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#license">📜 License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#contact">📣 Contact</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Radigen🧪⚛️</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Radigen 🧪⚛️</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/README.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="radigen">
+<h1>Radigen 🧪⚛️<a class="headerlink" href="#radigen" title="Link to this heading"></a></h1>
+<p><strong>Radigen</strong> is a compact Python kernel for simulating radical oxidation mechanisms in complex mixtures such as <strong>edible oils</strong>, <strong>biofuels</strong>, and <strong>polymers</strong>. It supports the <strong>generative construction</strong>, <strong>parameterization</strong>, and <strong>numerical resolution</strong> of complex chemical reaction networks, with full support for <strong>dynamic thermal and oxygenation conditions</strong>.</p>
+<blockquote>
+<div><p>Radigen is part of the <strong>Generative Simulation Initiative</strong>, and is designed for <strong>prompt-based modeling and LLM-driven scientific reasoning</strong>.</p>
+</div></blockquote>
+<p><img alt="Radigen Illustration" src="_images/radigen_banner.png" /></p>
+<p><small>🎨 Credits: Olivier Vitrac</small></p>
+<hr class="docutils" />
+<section id="table-of-contents">
+<h2>📚 Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading"></a></h2>
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<ul class="simple">
+<li><p><a class="reference internal" href="#scientific-foundation"><span class="xref myst">📚🔬 1 | Scientific Foundation</span></a></p></li>
+<li><p><a class="reference internal" href="#core-capabilities"><span class="xref myst">🧠🛠️ 2 | Core Capabilities</span></a></p></li>
+<li><p><a class="reference internal" href="#llm-integration"><span class="xref myst">🤖🧠 3 | LLM Integration</span></a></p></li>
+<li><p><a class="reference internal" href="#quick-start"><span class="xref myst">🚀📦 4 | Quick Start</span></a></p></li>
+<li><p><a class="reference internal" href="#example-scenarios"><span class="xref myst">⚗️ 5 | Example Scenarios</span></a></p></li>
+<li><p><a class="reference internal" href="#combinatorial-radical-chemistry"><span class="xref myst">♾️⚗️ 6 | Combinatorial Radical Chemistry</span></a></p></li>
+<li><p><a class="reference internal" href="#%E2%9C%9A-7-extending-radical-chemistry"><span class="xref myst">✚⚗️ 7 | Extending Radical Chemistry</span></a></p></li>
+<li><p><a class="reference internal" href="#project-structure"><span class="xref myst">📦📁 8 | Project Structure</span></a></p></li>
+<li><p><a class="reference internal" href="#installation"><span class="xref myst">🔧 9 | Installation</span></a></p></li>
+<li><p><a class="reference internal" href="#core-classes"><span class="xref myst">🧩📘 10 | Core Classes</span></a></p></li>
+<li><p><a class="reference internal" href="#lumped-species"><span class="xref myst">🧺🧫 11 | Lumped Species</span></a></p></li>
+<li><p><a class="reference internal" href="#chemistry-assumptions"><span class="xref myst">🧬 12 | Chemistry Assumptions</span></a></p></li>
+<li><p><a class="reference internal" href="#license"><span class="xref myst">📜 License</span></a></p></li>
+<li><p><a class="reference internal" href="#contact"><span class="xref myst">📣 Contact</span></a></p></li>
+</ul>
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+</section>
+<hr class="docutils" />
+<section id="scientific-foundation">
+<h2>📚🔬 1 | Scientific Foundation<a class="headerlink" href="#scientific-foundation" title="Link to this heading"></a></h2>
+<p>Radigen is based on two peer-reviewed frameworks for oxidation kinetics in unsaturated systems:</p>
+<ol class="arabic simple">
+<li><p><strong>Touffet M., Smith P., Vitrac O.</strong>,
+<em>A comprehensive two-scale model for predicting the oxidizability of fatty acid methyl ester mixtures</em>,
+<em>Food Research International</em>, 173, 2023, 113289.
+https://doi.org/10.1016/j.foodres.2023.113289</p></li>
+<li><p><strong>Touffet M., Vitrac O.</strong>,
+<em>Temperature-dependent kinetics of unsaturated fatty acid methyl esters: Modeling autoxidation mechanisms</em>,
+<em>Food Chemistry</em>, 481, 2025, 143952.
+https://doi.org/10.1016/j.foodchem.2025.143952</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="core-capabilities">
+<h2>🧠🛠️ 2 | Core Capabilities<a class="headerlink" href="#core-capabilities" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>✅ Declarative <strong>species and reaction network construction</strong></p></li>
+<li><p>✅ <strong>Combinatorial generation</strong> of mono/bimolecular reactions</p></li>
+<li><p>✅ <strong>Cross-reaction inference</strong> from self-reactions</p></li>
+<li><p>✅ <strong>Rate constant assignment</strong> from structured fingerprint database</p></li>
+<li><p>✅ <strong>Temperature + viscosity effects</strong> (Arrhenius &amp; Smoluchowski)</p></li>
+<li><p>✅ <strong>Cage ↔ free</strong> hydroperoxide decomposition equilibrium</p></li>
+<li><p>✅ <strong>O₂ transport</strong> coupling via Henry’s law and dissolution kinetics</p></li>
+<li><p>✅ Dynamic <strong>temperature &amp; kO₂ cycles</strong> with <code class="docutils literal notranslate"><span class="pre">TKO2cycle</span></code></p></li>
+<li><p>✅ <strong>Chained simulations</strong>, physical mixing of partially oxidized systems</p></li>
+<li><p>✅ High-level <strong>plotting</strong>, <strong>DataFrame output</strong>, and <strong>lumped species</strong></p></li>
+<li><p>✅ Built-in support for <strong>LLM prompts</strong>, aiding scientific simulation</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="llm-integration">
+<h2>🤖🧠 3 | LLM Integration<a class="headerlink" href="#llm-integration" title="Link to this heading"></a></h2>
+<p>Radigen was designed for <strong>prompt-based simulation</strong> and <strong>LLM-assisted reasoning</strong>. Its modular architecture allows:</p>
+<ul class="simple">
+<li><p>Easy mapping from LLM prompt to chemical simulations</p></li>
+<li><p>Access to symbolic names (e.g., <code class="docutils literal notranslate"><span class="pre">L1OOH</span></code>, <code class="docutils literal notranslate"><span class="pre">L2•</span></code>) and grouped observables</p></li>
+<li><p>High-quality examples showcasing realistic oxidation scenarios</p></li>
+<li><p>Support for mixing, renewal, dynamic profiles, and chemical interrogation</p></li>
+</ul>
+<blockquote>
+<div><p>💡 <strong>Example Prompts</strong>:</p>
+<ul class="simple">
+<li><p>“<em>Simulate oxidation of linolenic acid at 180°C with oxygen limitation</em>.”</p></li>
+<li><p>“<em>What happens when abused oil is mixed with fresh oil?</em>”</p></li>
+<li><p>“<em>Generate a kinetic profile under cooling from 160°C to 40°C.</em>”</p></li>
+</ul>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="quick-start">
+<h2>🚀📦 4 | Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">radigen3.oxidation</span><span class="w"> </span><span class="kn">import</span> <span class="n">mixture</span><span class="p">,</span> <span class="n">mixtureKinetics</span>
+
+<span class="n">oil</span> <span class="o">=</span> <span class="n">mixture</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mi">3000</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="n">oil</span><span class="o">.</span><span class="n">addProducts</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">addReactions</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">populateReactionRates</span><span class="p">()</span>
+
+<span class="n">oilmodel</span> <span class="o">=</span> <span class="n">mixtureKinetics</span><span class="p">(</span><span class="n">oil</span><span class="p">)</span>
+<span class="n">oilmodel</span><span class="o">.</span><span class="n">solve</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;days&quot;</span><span class="p">),</span> <span class="n">T</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">oilmodel</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span> <span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span> <span class="s2">&quot;O2&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="example-scenarios">
+<h2>⚗️ 5 | Example Scenarios<a class="headerlink" href="#example-scenarios" title="Link to this heading"></a></h2>
+<p>Radigen includes worked-out examples such as <code class="docutils literal notranslate"><span class="pre">simulate\_oil.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test\_oxidation.py</span></code>, including:</p>
+<ul class="simple">
+<li><p><strong>Scenario 1</strong>: Oxidation at 140°C for 1 hour</p></li>
+<li><p><strong>Scenario 2</strong>: Long-term oxidation at 80°C for 100 hours</p></li>
+<li><p><strong>Scenario 3</strong>: Dynamic cycle (180°C → 40°C over days)</p></li>
+<li><p><strong>Scenario 4</strong>: Partial renewal (abused + pristine oil, then storage)</p></li>
+<li><p><strong>Unit tests</strong>: Oxidation under <strong>anoxia</strong> and with <strong>oxygen excess</strong></p></li>
+</ul>
+<p>🖼️ Each simulation includes ready-to-use <code class="docutils literal notranslate"><span class="pre">plot()</span></code> methods, with export support via <code class="docutils literal notranslate"><span class="pre">fig.print(filename,</span> <span class="pre">folder)</span></code>.</p>
+</section>
+<hr class="docutils" />
+<section id="combinatorial-radical-chemistry">
+<h2>♾️⚗️ 6 | Combinatorial Radical Chemistry<a class="headerlink" href="#combinatorial-radical-chemistry" title="Link to this heading"></a></h2>
+<section id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h3>
+<p>Radigen generates all reactions and paramaterized them according to combinatorial rules. The following  script spans a reaction scheme involving <strong>27 species</strong> and <strong>60 reactions</strong>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">oil</span> <span class="o">=</span> <span class="n">mixture</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">3000</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L2H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L3H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">addProducts</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">addReactions</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">populateReactionRates</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Considered reaction Scheme&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="o">*</span><span class="mi">30</span><span class="p">,</span> <span class="n">oil</span><span class="o">.</span><span class="n">reactionScheme</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="n">oilmodel</span> <span class="o">=</span> <span class="n">mixtureKinetics</span><span class="p">(</span><span class="n">oil</span><span class="p">)</span> <span class="c1"># kinetic model</span>
+<span class="n">oilmodel</span><span class="o">.</span><span class="n">solve</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span><span class="s2">&quot;days&quot;</span><span class="p">),</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">oilmodel</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">oilmodel</span><span class="o">.</span><span class="n">results_as_dataframe</span><span class="p">([</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span><span class="s2">&quot;L2H&quot;</span><span class="p">,</span><span class="s2">&quot;L3H&quot;</span><span class="p">,</span><span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span><span class="s2">&quot;L2OOH&quot;</span><span class="p">,</span><span class="s2">&quot;L3OOH&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+<details>
+	<summary>Click here to see results</summary>
+<p>⏱ <strong>60 reactions</strong> involving <strong>27 species</strong> were generated, including:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> *R0: L1H + HO• → L1• + H2O,
+ *R1: L1H + L1O• → L1• + L1OH,
+ *R2: L1H + L1OO• → L1• + L1OOH,
+ *R3: L1H + L2OO• → L1• + L2OOH,
+ *R4: L1H + L3OO• → L1• + L3OOH,
+ *R5: L1H + L2O• → L1• + L2OH,
+ *R6: L1H + L3O• → L1• + L3OH,
+ *R7: L2H + HO• → L2• + H2O,
+ *R8: L2H + L1O• → L2• + L1OH,
+ *R9: L2H + L1OO• → L2• + L1OOH,
+ *R10: L2H + L2OO• → L2• + L2OOH,
+ *R11: L2H + L3OO• → L2• + L3OOH,
+ *R12: L2H + L2O• → L2• + L2OH,
+ *R13: L2H + L3O• → L2• + L3OH,
+ *R14: L3H + HO• → L3• + H2O,
+ *R15: L3H + L1O• → L3• + L1OH,
+ *R16: L3H + L1OO• → L3• + L1OOH,
+ *R17: L3H + L2OO• → L3• + L2OOH,
+ *R18: L3H + L3OO• → L3• + L3OOH,
+ *R19: L3H + L2O• → L3• + L2OH,
+ *R20: L3H + L3O• → L3• + L3OH,
+ *R21: L1OOH → L1O• + HO•,
+ *R22: L1OOH + L1OOH → L1O• + L1OO•,
+ *R23: L1OOH + L2OOH → L1O• + L2OO•,
+ *R24: L1OOH + L2OOH → L2O• + L1OO•,
+ *R25: L1OOH + L3OOH → L1O• + L3OO•,
+ *R26: L1OOH + L3OOH → L3O• + L1OO•,
+ *R27: L1• + O2 → L1OO•,
+ *R28: L1• + L1• → L1-polymer + L1-polymer,
+ *R29: L1• + L2• → L1-polymer + L2-polymer,
+ *R30: L1• + L3• → L1-polymer + L3-polymer,
+ *R31: L1• + L1OO• → L1-polymer + L1-polymer,
+ *R32: L1• + L2OO• → L1-polymer + L2-polymer,
+ *R33: L1• + L3OO• → L1-polymer + L3-polymer,
+ *R34: L2• + O2 → L2OO•,
+ *R35: L2• + L2• → L2-polymer + L2-polymer,
+ *R36: L2• + L3• → L2-polymer + L3-polymer,
+ *R37: L2• + L1OO• → L2-polymer + L1-polymer,
+ *R38: L2• + L2OO• → L2-polymer + L2-polymer,
+ *R39: L2• + L3OO• → L2-polymer + L3-polymer,
+ *R40: L3• + O2 → L3OO•,
+ *R41: L3• + L3• → L3-polymer + L3-polymer,
+ *R42: L3• + L1OO• → L3-polymer + L1-polymer,
+ *R43: L3• + L2OO• → L3-polymer + L2-polymer,
+ *R44: L3• + L3OO• → L3-polymer + L3-polymer,
+ *R45: L1O• → L1=O,
+ *R46: L1OO• + L1OO• → L1-polymer + L1-polymer,
+ *R47: L1OO• + L2OO• → L1-polymer + L2-polymer,
+ *R48: L1OO• + L3OO• → L1-polymer + L3-polymer,
+ *R49: L2OO• + L2OO• → L2-polymer + L2-polymer,
+ *R50: L2OO• + L3OO• → L2-polymer + L3-polymer,
+ *R51: L3OO• + L3OO• → L3-polymer + L3-polymer,
+ *R52: L2OOH → L2O• + HO•,
+ *R53: L2OOH + L2OOH → L2O• + L2OO•,
+ *R54: L2OOH + L3OOH → L2O• + L3OO•,
+ *R55: L2OOH + L3OOH → L3O• + L2OO•,
+ *R56: L3OOH → L3O• + HO•,
+ *R57: L3OOH + L3OOH → L3O• + L3OO•,
+ *R58: L2O• → L2=O,
+ *R59: L3O• → L3=O
+</pre></div>
+</div>
+<p><em>A star indicates that the reaction has been correctly parameterized</em>.</p>
+</details>
+</section>
+</section>
+<section id="extending-radical-chemistry">
+<h2>✚⚗️ 7 | Extending Radical Chemistry<a class="headerlink" href="#extending-radical-chemistry" title="Link to this heading"></a></h2>
+<p>Radigen <strong>automatically generates all chemically valid reactions</strong> by combining species according to their <strong>reactive functions</strong>, including hydrogen abstraction, radical recombination, and hydroperoxide decomposition. Each species class defines:</p>
+<ul class="simple">
+<li><p>Its <strong>reactive function</strong> (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;CH&quot;</span></code> for allylic hydrogen)</p></li>
+<li><p>Which <strong>functions it reacts with</strong> (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;HO•&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;COO•&quot;</span></code>)</p></li>
+<li><p>The <strong>product class</strong> to form (e.g., <code class="docutils literal notranslate"><span class="pre">monoAllylicC</span></code>)</p></li>
+<li><p>A <strong>default name and root</strong>, which are used to infer product names</p></li>
+<li><p>An <strong>optional color and linestyle</strong> for visualization</p></li>
+</ul>
+<section id="example-hydrogen-abstraction-from-oleic-acid-l1h">
+<h3>🧬 7.1 | Example: Hydrogen Abstraction from Oleic Acid (L1H)<a class="headerlink" href="#example-hydrogen-abstraction-from-oleic-acid-l1h" title="Link to this heading"></a></h3>
+<p>The species <code class="docutils literal notranslate"><span class="pre">L1H</span></code> is defined using a class that encodes its reactivity:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@species</span><span class="o">.</span><span class="n">register</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">monoAllylicCH</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Aliphatic (CH) on monoallylic site&quot;&quot;&quot;</span>
+    <span class="n">classAliases</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;C1H&#39;</span><span class="p">,</span> <span class="s1">&#39;R1H&#39;</span><span class="p">,</span> <span class="s1">&#39;L1H&#39;</span><span class="p">,</span> <span class="s1">&#39;P1H&#39;</span><span class="p">]</span>
+    <span class="n">defaultName</span> <span class="o">=</span> <span class="s2">&quot;L1H&quot;</span>
+    <span class="n">defaultRoot</span> <span class="o">=</span> <span class="s2">&quot;L1&quot;</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;H&quot;</span>
+    <span class="n">allylic</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">reactiveFunction</span> <span class="o">=</span> <span class="s2">&quot;CH&quot;</span>
+    <span class="n">reactWith</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;HO•&#39;</span><span class="p">,</span> <span class="s1">&#39;CO•&#39;</span><span class="p">,</span> <span class="s1">&#39;COO•&#39;</span><span class="p">]</span>
+    <span class="n">product</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;monoAllylicC&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>This declares that:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">L1H</span></code> can lose a hydrogen (H abstraction)</p></li>
+<li><p>It reacts with radicals such as <code class="docutils literal notranslate"><span class="pre">HO•</span></code>, <code class="docutils literal notranslate"><span class="pre">COO•</span></code>, etc.</p></li>
+<li><p>The product is a <code class="docutils literal notranslate"><span class="pre">monoAllylicC</span></code> radical (usually named <code class="docutils literal notranslate"><span class="pre">L1•</span></code>)</p></li>
+</ul>
+</section>
+<section id="reaction-generation">
+<h3>🔢 7.2 | Reaction Generation<a class="headerlink" href="#reaction-generation" title="Link to this heading"></a></h3>
+<p>When you run:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">oil</span><span class="o">.</span><span class="n">addProducts</span><span class="p">()</span>
+<span class="n">oil</span><span class="o">.</span><span class="n">addReactions</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Radigen:</p>
+<ol class="arabic simple">
+<li><p>Constructs new species like <code class="docutils literal notranslate"><span class="pre">L1•</span></code> and <code class="docutils literal notranslate"><span class="pre">L1OH</span></code> using registered rules.</p></li>
+<li><p>Creates all valid reactions like:</p></li>
+</ol>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>L1H + L1O• → L1• + L1OH
+L1H + HO• → L1• + H2O
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Assigns reaction rate constants by matching <strong>reaction fingerprints</strong>.</p></li>
+</ol>
+</section>
+<section id="rate-constant-assignment">
+<h3>🧾 7.3 | Rate Constant Assignment<a class="headerlink" href="#rate-constant-assignment" title="Link to this heading"></a></h3>
+<p>Reaction rates are assigned from a curated database (<code class="docutils literal notranslate"><span class="pre">reactionRateDB</span></code>) using string-based <strong>fingerprints</strong> such as:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">reactionRateDB</span><span class="p">(</span>
+    <span class="n">fingerprint</span><span class="o">=</span><span class="s2">&quot;L1H + L1O• -&gt; L1• + L1OH&quot;</span><span class="p">,</span>
+    <span class="n">T0</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>  <span class="c1"># reference temperature (°C)</span>
+    <span class="n">k0</span><span class="o">=</span><span class="mf">3.80e3</span><span class="p">,</span>  <span class="c1"># rate constant at T0 [m³·mol⁻¹·s⁻¹]</span>
+    <span class="n">Ea</span><span class="o">=</span><span class="mf">14.0e3</span><span class="p">,</span>  <span class="c1"># activation energy [J/mol]</span>
+    <span class="n">source</span><span class="o">=</span><span class="s2">&quot;Touffet et al. 2023, Table 2&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Fingerprints use canonical formatting and names.</p></li>
+<li><p>Each fingerprint may be associated with multiple entries (e.g., confidence intervals, sources).</p></li>
+<li><p>Cross-reactions inherit rate constants via <strong>geometric mean rules</strong> (from collision theory).</p></li>
+</ul>
+</section>
+<section id="fingerprint-substitution">
+<h3>🔄 7.4 | Fingerprint Substitution<a class="headerlink" href="#fingerprint-substitution" title="Link to this heading"></a></h3>
+<p>Radigen supports <strong>symbolic substitution</strong> to simplify fingerprint management. For instance:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">reactionRateDB</span><span class="o">.</span><span class="n">register_fingerprint_substitution</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;C([123])&quot;</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;L\1&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This maps <code class="docutils literal notranslate"><span class="pre">&quot;C1H&quot;</span></code> → <code class="docutils literal notranslate"><span class="pre">&quot;L1H&quot;</span></code>, allowing fingerprints like:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>C1H + C1O• → C1• + C1OH
+</pre></div>
+</div>
+<p>to reuse existing data for <code class="docutils literal notranslate"><span class="pre">L1H</span></code> reactions.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="project-structure">
+<h2>📦📁 8 | Project Structure<a class="headerlink" href="#project-structure" title="Link to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>radigen/
+├── radigen3/
+│   ├── oxidation.py         # main kernel (&gt;4 Klines)
+│   └── ...
+├── simulate_oil.py          # main simulation scenarios
+├── test_oxidation.py		# validation and baseline examples
+├── README.md
+├── images/				   # printed figures as PNG and PDF images
+├── docs/				   # code documentation
+└── literature/              # manuscripts and constant tables
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="installation">
+<h2>🔧 9 | Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>Radigen is a <strong>self-contained kernel</strong> distributed as a single module file:  <code class="docutils literal notranslate"><span class="pre">radigen3/oxidation.py</span></code> (∼4,000+ lines of fully documented code).</p>
+<p>No <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> is required.</p>
+<section id="recommended-project-layout">
+<h3>📁 Recommended Project Layout<a class="headerlink" href="#recommended-project-layout" title="Link to this heading"></a></h3>
+<p>Place your scripts in a folder alongside <code class="docutils literal notranslate"><span class="pre">radigen3/</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>radigen/
+├── radigen3/
+│   └── oxidation.py      # main module (kernel)
+├── yourscript.py         # your example or project scripts
+...
+└── README.md
+</pre></div>
+</div>
+<p>This allows <strong>direct usage</strong> of all core classes without installation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">radigen3.oxidation</span><span class="w"> </span><span class="kn">import</span> <span class="n">mixture</span><span class="p">,</span> <span class="n">mixtureKinetics</span><span class="p">,</span> <span class="n">TKO2cycle</span>
+</pre></div>
+</div>
+<p>This strategy:</p>
+<ul class="simple">
+<li><p>Enables <strong>version isolation</strong> and multiple coexisting Radigen versions.</p></li>
+<li><p>Avoids <code class="docutils literal notranslate"><span class="pre">sys.path</span></code> manipulation or environment modification.</p></li>
+<li><p>Is ideal for <strong>prompt-driven</strong> or <strong>LLM-assisted scripting</strong> workflows.</p></li>
+</ul>
+<blockquote>
+<div><p>🚩If you use notebooks (e.g., <code class="docutils literal notranslate"><span class="pre">Jupyter</span></code>), just ensure the notebook is run from the folder containing <code class="docutils literal notranslate"><span class="pre">radigen3/</span></code>.</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="core-classes">
+<h2>🧩📘 10 | Core Classes<a class="headerlink" href="#core-classes" title="Link to this heading"></a></h2>
+<p><strong>Module</strong> <code class="docutils literal notranslate"><span class="pre">radigen3.oxidation</span></code></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Class</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">species</span></code></p></td>
+<td><p>Represents chemical species (radicals, peroxides, stable)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">reaction</span></code></p></td>
+<td><p>Canonical reaction with fingerprint and type inference</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">reactionRateDB</span></code></p></td>
+<td><p>Registry of rate constants (k₀, Eₐ) searchable by fingerprint</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mixture</span></code></p></td>
+<td><p>Encodes physical/chemical system: species, V, A, T, kO₂, pO₂</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mixtureKinetics</span></code></p></td>
+<td><p>Numerical integrator for the chemical system (solve_ivp)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lumped</span></code></p></td>
+<td><p>Group of species for aggregate observables</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TKO2cycle</span></code></p></td>
+<td><p>Dynamic temperature and kO₂ definition for advanced scenarios</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Class Inheritance Diagram</strong> (without species-derived classes)</p>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>graph TD;
+PrintableFigure
+TKO2cycle
+lumped
+mixture
+mixtureKinetics
+reaction
+reactionRateDB
+species
+Figure --&gt; PrintableFigure
+object --&gt; TKO2cycle
+object --&gt; mixture
+object --&gt; mixtureKinetics
+object --&gt; reaction
+object --&gt; reactionRateDB
+object --&gt; species
+species --&gt; lumped
+</pre></div>
+</div>
+<p><strong>Class Inheritance Diagram</strong> (with species-derived classes)</p>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>graph TD;
+H2O
+PrintableFigure
+TKO2cycle
+diAllylicC
+diAllylicCH
+diAllylicCHO
+diAllylicCO
+diAllylicCOH
+diAllylicCOO
+diAllylicCOOH
+diAllylicCeqO
+lumped
+mixture
+mixtureKinetics
+monoAllylicC
+monoAllylicCH
+monoAllylicCHO
+monoAllylicCO
+monoAllylicCOH
+monoAllylicCOO
+monoAllylicCOOH
+monoAllylicCeqO
+oxygen
+peroxyl
+reaction
+reactionRateDB
+species
+terminationPolymers
+triAllylicC
+triAllylicCH
+triAllylicCHO
+triAllylicCO
+triAllylicCOH
+triAllylicCOO
+triAllylicCOOH
+triAllylicCeqO
+Figure --&gt; PrintableFigure
+object --&gt; TKO2cycle
+object --&gt; mixture
+object --&gt; mixtureKinetics
+object --&gt; reaction
+object --&gt; reactionRateDB
+object --&gt; species
+species --&gt; H2O
+species --&gt; diAllylicC
+species --&gt; diAllylicCH
+species --&gt; diAllylicCHO
+species --&gt; diAllylicCO
+species --&gt; diAllylicCOH
+species --&gt; diAllylicCOO
+species --&gt; diAllylicCOOH
+species --&gt; diAllylicCeqO
+species --&gt; lumped
+species --&gt; monoAllylicC
+species --&gt; monoAllylicCH
+species --&gt; monoAllylicCHO
+species --&gt; monoAllylicCO
+species --&gt; monoAllylicCOH
+species --&gt; monoAllylicCOO
+species --&gt; monoAllylicCOOH
+species --&gt; monoAllylicCeqO
+species --&gt; oxygen
+species --&gt; peroxyl
+species --&gt; terminationPolymers
+species --&gt; triAllylicC
+species --&gt; triAllylicCH
+species --&gt; triAllylicCHO
+species --&gt; triAllylicCO
+species --&gt; triAllylicCOH
+species --&gt; triAllylicCOO
+species --&gt; triAllylicCOOH
+species --&gt; triAllylicCeqO
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="lumped-species">
+<h2>🧺🧫 11 | Lumped Species<a class="headerlink" href="#lumped-species" title="Link to this heading"></a></h2>
+<p>Radigen offers built-in <strong>grouping functions</strong> to track hydroperoxides, aldehydes, ketones, radicals and polymers:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">oilmodel</span><span class="o">.</span><span class="n">register_lumped</span><span class="p">(</span><span class="s2">&quot;LOOH&quot;</span><span class="p">,</span> <span class="n">oil</span><span class="o">.</span><span class="n">lumped_hydroperoxides</span><span class="p">())</span>
+<span class="n">oilmodel</span><span class="o">.</span><span class="n">register_lumped</span><span class="p">(</span><span class="s2">&quot;rad_C&quot;</span><span class="p">,</span> <span class="n">oil</span><span class="o">.</span><span class="n">lumped_radicals_on_C</span><span class="p">())</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">oilmodel</span><span class="o">.</span><span class="n">results_as_dataframe</span><span class="p">([</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span> <span class="s2">&quot;LOOH&quot;</span><span class="p">,</span> <span class="s2">&quot;rad_C&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Custom groups by pattern or reactive function:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">peroxyls</span> <span class="o">=</span> <span class="n">oil</span><span class="o">.</span><span class="n">get_lumped_by_pattern</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;.*OO•$&quot;</span><span class="p">)</span>
+<span class="n">cooh_group</span> <span class="o">=</span> <span class="n">oil</span><span class="o">.</span><span class="n">get_lumped_by_function</span><span class="p">(</span><span class="s2">&quot;COOH&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="chemistry-assumptions">
+<h2>🧬 12 | Chemistry Assumptions<a class="headerlink" href="#chemistry-assumptions" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Allylicity matters: <code class="docutils literal notranslate"><span class="pre">L1H</span></code>, <code class="docutils literal notranslate"><span class="pre">L2H</span></code>, <code class="docutils literal notranslate"><span class="pre">L3H</span></code> represent mono-, di-, and triallylic protons.</p></li>
+<li><p>Glycerol backbone is ignored; triglycerides are <strong>approximated by FAMEs</strong> (fatty methyl esters).</p></li>
+<li><p>O₂ transport modeled via gas-liquid interface (Henry’s law + <code class="docutils literal notranslate"><span class="pre">kO2</span></code>)</p></li>
+<li><p>Thermodynamic equilibrium (stability of H-bonds) governs <strong>ROOH cage vs. free</strong> mechanism.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="license">
+<h2>📜 License<a class="headerlink" href="#license" title="Link to this heading"></a></h2>
+<p>MIT License – see <code class="docutils literal notranslate"><span class="pre">LICENSE</span></code>.</p>
+</section>
+<hr class="docutils" />
+<section id="contact">
+<h2>📣 Contact<a class="headerlink" href="#contact" title="Link to this heading"></a></h2>
+<p>Developed under the <strong>Generative Simulation Initiative</strong> 🌱
+Lead: <strong>Olivier Vitrac</strong>
+Contact: <em><a class="reference external" href="mailto:olivier&#46;vitrac&#37;&#52;&#48;gmail&#46;com">olivier<span>&#46;</span>vitrac<span>&#64;</span>gmail<span>&#46;</span>com</a></em></p>
+<p><em>Last updated: 2025-05-23</em></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to sig2dna_core’s documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Olivier Vitrac (Generative Simulation).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

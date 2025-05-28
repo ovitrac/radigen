@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>radigen Usage/Class Examples</title>
+<style>
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif; 
+    margin: 0; 
+    padding: 0; 
+    line-height: 1.6; 
+    background-color: #f9f9f9; 
+    color: #333;
+}
+header {
+    background: #4CAF50; 
+    color: #fff; 
+    padding: 10px;
+    position: relative; /* For positioning the toggle button */
+}
+header h1 {
+    margin: 0; 
+    font-size: 1.5em;
+    color: #fff; /* Explicitly set to white */
+    padding-left: 50px; /* Space for the toggle button */
+}
+#content {
+    display: flex;
+    height: calc(100vh - 50px); /* Adjusted for header height */
+    transition: all 0.3s ease; /* Enable transitions for smooth animations */
+}
+#nav {
+    width: 300px; /* Set a fixed width */
+    background: #fff;
+    border-right: 1px solid #ddd;
+    padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    transition: width 0.3s ease, padding 0.3s ease; /* Transition for smooth animations */
+    flex-shrink: 0; /* Prevent flexbox from shrinking */
+}
+#nav.collapsed {
+    width: 0; /* Hide the sidebar completely */
+    padding: 20px 0; /* Optionally adjust padding */
+}
+#main {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    transition: all 0.3s ease; /* Enable transitions for smooth animations */
+}
+header .toggle-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%); /* Center the button vertically */
+    left: 10px; /* Place the button on the left */
+    background-color: #4CAF50; /* Green background */
+    border: none;
+    color: white; /* Ensure the hamburger icon is white */
+    padding: 10px 12px; /* Adjust padding for larger button */
+    cursor: pointer;
+    font-size: 1.2em; /* Increase font size for better visibility */
+    border-radius: 4px;
+    z-index: 1001; /* Ensure the button is above other elements */
+}
+header .toggle-btn:hover {
+    background-color: #45a049;
+}
+header .toggle-btn kbd {
+    font-family: 'Arial', sans-serif; /* Match the header font */
+    color: white; /* Ensure the hamburger icon is white */
+    font-size: 1.2em; /* Same size as the button text */
+    background: none; /* Remove any background styling from <kbd> */
+    border: none; /* Remove any borders from <kbd> */
+}
+h1 {
+    font-size: 1.8em;
+    color: #333;
+}
+h2 {
+    color: #333; 
+    border-bottom: 2px solid #4CAF50; 
+    padding-bottom: 5px;
+}
+a {
+    text-decoration: none; 
+    color: #007BFF;
+}
+a:hover {
+    text-decoration: underline;
+}
+ul {
+    list-style-type: none; 
+    padding-left: 0;
+    margin: 0;
+}
+li {
+    margin: 5px 0;
+}
+.folder-title {
+    font-weight: bold; 
+    color: #333; 
+    padding: 5px 0;
+    cursor: pointer;
+}
+.folder-content {
+    margin-left: 20px;
+    display: none; /* start collapsed */
+}
+.file {
+    margin-left: 20px;
+}
+hr {
+    margin: 20px 0; 
+    border: 1px solid #ddd;
+}
+footer {
+    font-size: 0.9em; 
+    color: #666; 
+    margin-top: 20px; 
+    text-align: center;
+}
+/* Enhanced Table Styling with Banded Colors */
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+th {
+    background-color: #4CAF50;
+    color: white;
+}
+tr:nth-child(even) {
+    background-color: #f2f2f2; /* Light gray for even rows */
+}
+tr:nth-child(odd) {
+    background-color: rgba(76, 175, 80, 0.1); /* Light green for odd rows */
+}
+/* Collapsible Code Section */
+.collapsible {
+    background-color: #f1f1f1;
+    color: #333;
+    cursor: pointer;
+    padding: 10px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 1em;
+}
+.active, .collapsible:hover {
+    background-color: #ddd;
+}
+.content {
+    padding: 0 18px;
+    display: none;
+    overflow: hidden;
+    background-color: #f9f9f9;
+}
+/* Minimal Syntax Highlighting */
+.code {
+    background-color: #f4f4f4;
+    padding: 10px;
+    border: 1px solid #ddd;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    color: #333;
+}
+.keyword {
+    color: #007BFF;
+    font-weight: bold;
+}
+.comment {
+    color: #6a9955;
+    font-style: italic;
+}
+.string {
+    color: #a31515;
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    #nav {
+        position: absolute;
+        left: 0;
+        top: 50px; /* Height of the header */
+        height: calc(100% - 50px);
+        z-index: 1000;
+    }
+    #nav.collapsed {
+        width: 0; /* Hide the sidebar completely */
+        padding: 20px 0; /* Adjust padding */
+    }
+    #main {
+        flex: 1;
+    }
+    /* Add overlay when sidebar is open on mobile */
+    body.nav-open::before {
+        content: "";
+        position: fixed;
+        top: 50px;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 50px);
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+}
+
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.code .hll { background-color: #ffffcc }
+.code { background: #f8f8f8; }
+.code .c { color: #3D7B7B; font-style: italic } /* Comment */
+.code .err { border: 1px solid #F00 } /* Error */
+.code .k { color: #008000; font-weight: bold } /* Keyword */
+.code .o { color: #666 } /* Operator */
+.code .ch { color: #3D7B7B; font-style: italic } /* Comment.Hashbang */
+.code .cm { color: #3D7B7B; font-style: italic } /* Comment.Multiline */
+.code .cp { color: #9C6500 } /* Comment.Preproc */
+.code .cpf { color: #3D7B7B; font-style: italic } /* Comment.PreprocFile */
+.code .c1 { color: #3D7B7B; font-style: italic } /* Comment.Single */
+.code .cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
+.code .gd { color: #A00000 } /* Generic.Deleted */
+.code .ge { font-style: italic } /* Generic.Emph */
+.code .ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.code .gr { color: #E40000 } /* Generic.Error */
+.code .gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.code .gi { color: #008400 } /* Generic.Inserted */
+.code .go { color: #717171 } /* Generic.Output */
+.code .gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+.code .gs { font-weight: bold } /* Generic.Strong */
+.code .gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.code .gt { color: #04D } /* Generic.Traceback */
+.code .kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+.code .kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+.code .kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+.code .kp { color: #008000 } /* Keyword.Pseudo */
+.code .kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+.code .kt { color: #B00040 } /* Keyword.Type */
+.code .m { color: #666 } /* Literal.Number */
+.code .s { color: #BA2121 } /* Literal.String */
+.code .na { color: #687822 } /* Name.Attribute */
+.code .nb { color: #008000 } /* Name.Builtin */
+.code .nc { color: #00F; font-weight: bold } /* Name.Class */
+.code .no { color: #800 } /* Name.Constant */
+.code .nd { color: #A2F } /* Name.Decorator */
+.code .ni { color: #717171; font-weight: bold } /* Name.Entity */
+.code .ne { color: #CB3F38; font-weight: bold } /* Name.Exception */
+.code .nf { color: #00F } /* Name.Function */
+.code .nl { color: #767600 } /* Name.Label */
+.code .nn { color: #00F; font-weight: bold } /* Name.Namespace */
+.code .nt { color: #008000; font-weight: bold } /* Name.Tag */
+.code .nv { color: #19177C } /* Name.Variable */
+.code .ow { color: #A2F; font-weight: bold } /* Operator.Word */
+.code .w { color: #BBB } /* Text.Whitespace */
+.code .mb { color: #666 } /* Literal.Number.Bin */
+.code .mf { color: #666 } /* Literal.Number.Float */
+.code .mh { color: #666 } /* Literal.Number.Hex */
+.code .mi { color: #666 } /* Literal.Number.Integer */
+.code .mo { color: #666 } /* Literal.Number.Oct */
+.code .sa { color: #BA2121 } /* Literal.String.Affix */
+.code .sb { color: #BA2121 } /* Literal.String.Backtick */
+.code .sc { color: #BA2121 } /* Literal.String.Char */
+.code .dl { color: #BA2121 } /* Literal.String.Delimiter */
+.code .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+.code .s2 { color: #BA2121 } /* Literal.String.Double */
+.code .se { color: #AA5D1F; font-weight: bold } /* Literal.String.Escape */
+.code .sh { color: #BA2121 } /* Literal.String.Heredoc */
+.code .si { color: #A45A77; font-weight: bold } /* Literal.String.Interpol */
+.code .sx { color: #008000 } /* Literal.String.Other */
+.code .sr { color: #A45A77 } /* Literal.String.Regex */
+.code .s1 { color: #BA2121 } /* Literal.String.Single */
+.code .ss { color: #19177C } /* Literal.String.Symbol */
+.code .bp { color: #008000 } /* Name.Builtin.Pseudo */
+.code .fm { color: #00F } /* Name.Function.Magic */
+.code .vc { color: #19177C } /* Name.Variable.Class */
+.code .vg { color: #19177C } /* Name.Variable.Global */
+.code .vi { color: #19177C } /* Name.Variable.Instance */
+.code .vm { color: #19177C } /* Name.Variable.Magic */
+.code .il { color: #666 } /* Literal.Number.Integer.Long */
+</style>
+</head>
+<body>
+<header>
+    <!-- Toggle Sidebar Button -->
+    <button class='toggle-btn' id='toggleSidebar' aria-label='Toggle Sidebar' aria-expanded='false'>
+        <kbd>&#9776;</kbd>
+    </button>
+    <h1>radigen Documentation - Usage Examples</h1>
+</header>
+<div id='content'>
+<div id='nav'>
+<p><strong>Version:</strong> radigen v.0.512</p>
+<p><strong>Maintained by:</strong> INRAE\olivier.vitrac@agroparistech.fr</p>
+<hr>
+<ul>
+<li class="folder">
+<div class="folder-title" onclick="toggleFolder(this)">radigen3</div>
+<ul class="folder-content">
+<ul>
+<li class="file"><a href="#radigen3_oxidation" onclick="loadDoc('radigen3_oxidation')">oxidation.py</a></li>
+</ul>
+</ul>
+</li>
+</ul>
+
+</div>
+<div id='main'>
+<div id="welcome" class="module-content" style="display:block;">
+
+<h2>Welcome to Usage Class Examples</h2>
+<p>Select a module in the left menu to view usage examples. These examples are not for production and are automatically extracted from the main section of each module.</p>
+<p>Back to the <a href='index.html'>Python'radigen documentation</a>.</p>
+<p>When no module is selected, you see this welcome page. They are used to test classes with typical codes. The main section often serves as a testing script, example usage block, or self-contained test block. It's a way to demonstrate how the module's functionality works or to run simple unit tests and examples inline.</p>
+<p>Generated on: 2025-05-23 10:46:13</p>
+
+</div>
+
+<div id="radigen3_oxidation" class="module-content" style="display:none;">
+<button onclick="toggleAllCode(this)" class="collapsible">Toggle All Code Sections</button>
+<p>database</p>
+
+    <button type="button" class="collapsible">Show Code Example 1</button>
+    <div class="content">
+    <pre class="code"><span class="n">ktable</span> <span class="o">=</span> <span class="n">reactionRateDB</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">ktable</span><span class="p">)</span>
+</pre>
+    </div>
+    <p>Oxidation of a FAME mixture</p>
+
+    <button type="button" class="collapsible">Show Code Example 2</button>
+    <div class="content">
+    <pre class="code"><span class="n">oil</span> <span class="o">=</span> <span class="n">mixture</span><span class="p">()</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">3000</span><span class="p">)</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L2H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L3H&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;O2&quot;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">addProducts</span><span class="p">()</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">addReactions</span><span class="p">()</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">populateReactionRates</span><span class="p">()</span>
+    <span class="n">oil</span><span class="o">.</span><span class="n">reactions</span>
+    <span class="n">polar</span> <span class="o">=</span> <span class="n">oil</span><span class="o">.</span><span class="n">lumped_polar_compounds</span><span class="p">()</span>
+    <span class="n">oilmodel</span> <span class="o">=</span> <span class="n">mixtureKinetics</span><span class="p">(</span><span class="n">oil</span><span class="p">)</span> <span class="c1"># kinetic model</span>
+    <span class="n">oilmodel</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="mi">10</span><span class="o">*</span><span class="mi">24</span><span class="o">*</span><span class="mi">3600</span><span class="p">,</span><span class="mi">60</span><span class="p">)</span>
+    <span class="n">oilmodel</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">oilmodel</span><span class="o">.</span><span class="n">results_as_dataframe</span><span class="p">([</span><span class="s2">&quot;L1H&quot;</span><span class="p">,</span><span class="s2">&quot;L2H&quot;</span><span class="p">,</span><span class="s2">&quot;L3H&quot;</span><span class="p">,</span><span class="s2">&quot;L1OOH&quot;</span><span class="p">,</span><span class="s2">&quot;L2OOH&quot;</span><span class="p">,</span><span class="s2">&quot;L3OOH&quot;</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre>
+    </div>
+    <p>low-level examples</p>
+
+    <button type="button" class="collapsible">Show Code Example 3</button>
+    <div class="content">
+    <pre class="code"><span class="n">O2</span> <span class="o">=</span> <span class="n">oxygen</span><span class="p">()</span>
+    <span class="n">mono</span> <span class="o">=</span> <span class="n">species</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;C1H&#39;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">mono</span><span class="p">)</span>
+    <span class="n">mono</span><span class="o">.</span><span class="n">isradical</span>
+    <span class="kc">False</span>
+    <span class="n">alk</span> <span class="o">=</span> <span class="n">species</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;C1&#39;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+    <span class="n">ox</span> <span class="o">=</span> <span class="n">species</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;O2&#39;</span><span class="p">)</span>
+    <span class="n">rxn</span> <span class="o">=</span> <span class="n">alk</span> <span class="o">+</span> <span class="n">ox</span>  <span class="c1"># placeholder for reaction</span>
+    <span class="n">lump</span> <span class="o">=</span> <span class="n">mono</span> <span class="o">|</span> <span class="n">alk</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">lump</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">P1OOH</span> <span class="o">=</span> <span class="n">species</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;P1OOH&#39;</span><span class="p">,</span><span class="n">concentration</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+</pre>
+    </div>
+    <p>mixture</p>
+
+    <button type="button" class="collapsible">Show Code Example 4</button>
+    <div class="content">
+    <pre class="code"><span class="n">M</span> <span class="o">=</span> <span class="n">mixture</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;mymixture&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;this is my mixture&quot;</span><span class="p">)</span>
+    <span class="n">M</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;P1OOH&quot;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+    <span class="n">M</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;L2OOH&quot;</span><span class="p">,</span> <span class="n">concentration</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">M</span><span class="p">[</span><span class="s2">&quot;P1OOH&quot;</span><span class="p">])</span>     <span class="c1"># Access by name</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">M</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>           <span class="c1"># Access by index</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">L2OOH</span><span class="p">)</span>        <span class="c1"># Access by attribute</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">))</span>         <span class="c1"># → 2</span>
+</pre>
+    </div>
+    <p>Submixture</p>
+
+    <button type="button" class="collapsible">Show Code Example 5</button>
+    <div class="content">
+    <pre class="code"><span class="n">sub</span> <span class="o">=</span> <span class="n">M</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+</pre>
+    </div>
+    <p>Deletion</p>
+
+    <button type="button" class="collapsible">Show Code Example 6</button>
+    <div class="content">
+    <pre class="code"><span class="n">M</span><span class="p">[</span><span class="s2">&quot;P1OOH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">))</span>         <span class="c1"># → 1</span>
+</pre>
+    </div>
+    <p>Replacement</p>
+
+    <button type="button" class="collapsible">Show Code Example 7</button>
+    <div class="content">
+    <pre class="code"><span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+    <span class="n">new_sp</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">L2OOH</span><span class="p">)</span>
+    <span class="n">new_sp</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;L2OOH_new&quot;</span>
+    <span class="n">M</span><span class="p">[</span><span class="s2">&quot;L2OOH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_sp</span>
+</pre>
+    </div>
+    <p>Iteration and display</p>
+
+    <button type="button" class="collapsible">Show Code Example 8</button>
+    <div class="content">
+    <pre class="code"><span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">M</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">M</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">M</span><span class="p">))</span>
+</pre>
+    </div>
+    </div>
+
+</div>
+</div>
+<footer>
+<p>&copy; 2025 radigen Project. All rights reserved.</p>
+</footer>
+<script>
+// Toggle visibility of folder contents
+function toggleFolder(element) {
+    var content = element.nextElementSibling;
+    if (content.style.display === "block") {
+        content.style.display = "none";
+    } else {
+        content.style.display = "block";
+    }
+}
+
+// Load documentation into the main panel
+function loadDoc(moduleId) {
+    var modules = document.getElementsByClassName('module-content');
+    for (var i = 0; i < modules.length; i++) {
+        modules[i].style.display = 'none';
+    }
+    var welcome = document.getElementById('welcome');
+    welcome.style.display = 'none';
+    var selected = document.getElementById(moduleId);
+    if (selected) {
+        selected.style.display = 'block';
+    }
+}
+
+// Toggle All Code Sections
+function toggleAllCode(button) {
+    var moduleContent = button.parentElement;
+    var collapsibles = moduleContent.querySelectorAll('.collapsible');
+    var contents = moduleContent.querySelectorAll('.content');
+    var shouldExpand = true;
+    // Determine if we should expand or collapse based on the first content's display
+    if (contents.length > 0 && (contents[0].style.display === 'block')) {
+        shouldExpand = false;
+    }
+    collapsibles.forEach(function(collapsible, index) {
+        var content = collapsibles[index].nextElementSibling;
+        if (shouldExpand) {
+            content.style.display = 'block';
+            collapsible.textContent = 'Hide Code Example ' + (index + 1);
+        } else {
+            content.style.display = 'none';
+            collapsible.textContent = 'Show Code Example ' + (index + 1);
+        }
+    });
+    button.textContent = shouldExpand ? 'Collapse All Code Sections' : 'Expand All Code Sections';
+}
+
+// Initialize all collapsible buttons and handle URL hash on page load
+document.addEventListener("DOMContentLoaded", function() {
+    var coll = document.getElementsByClassName("collapsible");
+    for (var i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+                content.style.display = "none";
+                this.textContent = this.textContent.replace('Hide', 'Show');
+            } else {
+                content.style.display = "block";
+                this.textContent = this.textContent.replace('Show', 'Hide');
+            }
+        });
+    }
+    
+    // Handle URL hash on page load to display the corresponding module examples
+    var hash = window.location.hash.substring(1); // Remove the #
+    if (hash) {
+        loadDoc(hash);
+    }
+});
+
+// Toggle Sidebar Functionality
+const toggleButton = document.getElementById('toggleSidebar');
+const nav = document.getElementById('nav');
+
+toggleButton.addEventListener('click', () => {
+    nav.classList.toggle('collapsed');
+    document.body.classList.toggle('nav-open'); // Toggle overlay on small screens
+    // Change icon based on sidebar state
+    if(nav.classList.contains('collapsed')) {
+        toggleButton.innerHTML = '<kbd>&#9776;</kbd>'; // Hamburger icon
+        toggleButton.setAttribute('aria-expanded', 'false');
+    } else {
+        toggleButton.innerHTML = '<kbd>&#10005;</kbd>'; // Close icon (X)
+        toggleButton.setAttribute('aria-expanded', 'true');
+    }
+});
+</script>
+</body>
+</html>
