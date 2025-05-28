@@ -1,5 +1,5 @@
-Welcome to sig2dna_core's documentation
-=======================================
+Welcome to 🧪⚛️ Radigen's documentation
+========================================
 
 .. toctree::
    :maxdepth: 2
