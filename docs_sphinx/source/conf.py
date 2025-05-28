@@ -49,6 +49,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',  # For Google/Numpy style docstrings
     'myst_parser',          # Optional, if you use Markdown in docs
+     'sphinxcontrib.mermaid',
 ]
 extensions += ['sphinx.ext.mathjax']
 

@@ -412,7 +412,7 @@ This strategy:
 
 **Class Inheritance Diagram** (without species-derived classes)
 
-```mermaid
+```{mermaid}
 graph TD;
 PrintableFigure
 TKO2cycle
@@ -436,7 +436,7 @@ species --> lumped
 
 **Class Inheritance Diagram** (with species-derived classes)
 
-```mermaid
+```{mermaid}
 graph TD;
 H2O
 PrintableFigure
